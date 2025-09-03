@@ -17,7 +17,7 @@ from sphinx import addnodes
 from sphinx.util import logging
 from sphinx.util.docutils import SphinxDirective
 
-from sphinx_ts.parser import TSDocComment, TSParser
+from sphinx_ts.parser import TSDocComment, TSMethod, TSParser, TSProperty
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class TSAutoDirective(SphinxDirective):
         "no-index": directives.flag,
     }
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the directive."""
         super().__init__(*args, **kwargs)
         self.parser = TSParser()
@@ -117,14 +117,19 @@ class TSAutoDirective(SphinxDirective):
                             )
                             return obj_data
 
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning("Failed to parse %s: %s", file_path, e)
                 continue
 
         return None
 
     def _register_object_with_domain(
-        self, obj_type: str, name: str, docname: str, noindex: bool = False
+        self,
+        obj_type: str,
+        name: str,
+        docname: str,
+        *,
+        noindex: bool = False,
     ) -> None:
         """Register an object with the TypeScript domain for cross-referencing.
 
@@ -149,6 +154,7 @@ class TSAutoDirective(SphinxDirective):
     def format_doc_comment(
         self,
         doc_comment: TSDocComment | None,
+        *,
         skip_params: bool = False,
         skip_returns: bool = False,
         skip_examples: bool = False,
@@ -334,6 +340,7 @@ class TSAutoDirective(SphinxDirective):
         node: nodes.Element,
         param_name: str,
         optional: bool,
+        *,
         in_signature: bool = False,
     ) -> nodes.Element:
         """Format optional parameter consistently.
@@ -365,7 +372,10 @@ class TSAutoDirective(SphinxDirective):
         return node
 
     def format_parameter_type(
-        self, param_type: str | None, add_colon: bool = False
+        self,
+        param_type: str | None,
+        *,
+        add_colon: bool = False,
     ) -> str:
         """Format a parameter type consistently.
 
@@ -494,7 +504,7 @@ class TSAutoDirective(SphinxDirective):
 
     def _format_method_common(
         self,
-        method: Any,
+        method: TSMethod,
         parent_name: str | None = None,
         title_override: str | None = None,
     ) -> addnodes.desc | None:
@@ -569,12 +579,13 @@ class TSAutoDirective(SphinxDirective):
         self._add_method_returns(content, method)
 
         # Add examples documentation
-        self._add_examples_section(content, method.doc_comment)
+        if method.doc_comment:
+            self._add_examples_section(content, method.doc_comment)
 
         return desc
 
     def _add_method_description(
-        self, content: addnodes.desc_content, method: Any
+        self, content: addnodes.desc_content, method: TSMethod
     ) -> None:
         """Add method description only (no parameters, returns, or examples)."""
         if method.doc_comment and method.doc_comment.description:
@@ -583,7 +594,7 @@ class TSAutoDirective(SphinxDirective):
             content.append(desc_para)
 
     def _add_method_returns(
-        self, content: addnodes.desc_content, method: Any
+        self, content: addnodes.desc_content, method: TSMethod
     ) -> None:
         """Add method returns information."""
         if method.return_type or (
@@ -595,7 +606,7 @@ class TSAutoDirective(SphinxDirective):
             )
 
     def _add_parameter_list(
-        self, content: addnodes.desc_content, method: Any
+        self, content: addnodes.desc_content, method: TSMethod
     ) -> None:
         """Add parameter list to method content."""
         if not method.parameters:
@@ -658,7 +669,7 @@ class TSAutoDirective(SphinxDirective):
             field_body.append(para)
 
     def _format_property_common(
-        self, prop: Any, parent_name: str | None = None
+        self, prop: TSProperty, parent_name: str | None = None
     ) -> addnodes.desc | None:
         """Format a property as RST.
 
@@ -715,7 +726,7 @@ class TSAutoDirective(SphinxDirective):
     def _add_examples_section(
         self,
         content: nodes.Element,
-        doc_comment: Any,
+        doc_comment: TSDocComment,
     ) -> None:
         """Add examples section to documentation content.
 
@@ -750,6 +761,7 @@ class TSAutoDirective(SphinxDirective):
         parent_name: str,
         methods: list | None = None,
         properties: list | None = None,
+        *,
         noindex: bool = True,
     ) -> None:
         """Register methods and properties with the domain.

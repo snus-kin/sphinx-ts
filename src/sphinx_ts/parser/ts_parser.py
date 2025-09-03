@@ -1,7 +1,8 @@
 """TypeScript Parser Module.
 
-Contains the main TSParser class that uses Tree-sitter to parse TypeScript files
-and extract information about classes, interfaces, variables, functions, and enums.
+Contains the main TSParser class that uses Tree-sitter to parse TypeScript
+files and extract information about classes, interfaces, variables, functions,
+and enums.
 """
 
 from __future__ import annotations
@@ -126,7 +127,8 @@ class TSParser:
                         result["enums"].append(enum_obj)
 
         # Recursively traverse child nodes
-        # Skip children if this is an export statement that we've already processed
+        # Skip children if this is an export statement that we've already
+        # processed
         if node.type != "export_statement" or not any(
             child.type
             in [
@@ -312,7 +314,8 @@ class TSParser:
         # Get documentation comment
         enum_obj.doc_comment = self._find_doc_comment(node, source_code)
 
-        # If no comment found and we're in an export statement, check the export statement
+        # If no comment found and we're in an export statement, check the
+        # export statement
         if (
             not enum_obj.doc_comment
             and node.parent
@@ -507,7 +510,8 @@ class TSParser:
 
                     # Also look at export statements with multiple variables
                     if not var_obj.doc_comment:
-                        # Look for doc comments directly above the variable declarator
+                        # Look for doc comments directly above the variable
+                        # declarator
                         prev_sibling = self._get_previous_sibling(child)
                         if prev_sibling and prev_sibling.type == "comment":
                             comment_text = self._get_node_text(

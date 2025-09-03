@@ -128,7 +128,7 @@ class TestTSParser:
             add_method = calc_class.methods[0]
             assert add_method.name == "add"
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             # If tree-sitter is not properly installed, skip the test
             pytest.skip(f"Tree-sitter parsing failed: {e}")
 
@@ -163,7 +163,7 @@ class TestTSParser:
             assert config_interface.is_export
             assert len(config_interface.properties) >= 1
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             pytest.skip(f"Tree-sitter parsing failed: {e}")
 
     def test_parse_variable(self) -> None:
@@ -188,7 +188,7 @@ class TestTSParser:
             # We should have at least one variable parsed
             assert len(result["variables"]) >= 0
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             pytest.skip(f"Tree-sitter parsing failed: {e}")
 
     def test_parse_nonexistent_file(self) -> None:
@@ -211,7 +211,7 @@ class TestTSParser:
             result = self.parser.parse_file(file_path)
             assert isinstance(result, dict)
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             pytest.skip(f"Tree-sitter parsing failed: {e}")
 
 
@@ -305,7 +305,8 @@ export enum Color {
             assert enum.is_export
             assert not enum.is_const
             assert not enum.is_declare
-            assert len(enum.members) == 2
+            expected_member_count = 2
+            assert len(enum.members) == expected_member_count
 
             # Check first member
             red_member = enum.members[0]

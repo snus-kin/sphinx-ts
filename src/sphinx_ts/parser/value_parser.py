@@ -10,6 +10,12 @@ import tree_sitter
 from tree_sitter import Language, Parser
 from tree_sitter_typescript import language_typescript
 
+# Constants for formatting limits
+MAX_INLINE_ARRAY_ITEMS = 3
+MAX_INLINE_ITEM_LENGTH = 30
+MAX_INLINE_OBJECT_PAIRS = 2
+MAX_INLINE_PAIR_LENGTH = 40
+
 
 class TSValueParser:
     """Parser for TypeScript values and literals."""
@@ -173,7 +179,7 @@ class TSValueParser:
         }
 
     @staticmethod
-    def format_value(value: str | None, pretty: bool = True) -> str:
+    def format_value(value: str | None, *, pretty: bool = True) -> str:
         """Format a TypeScript value for display.
 
         Args:
@@ -229,7 +235,7 @@ class TSValueParser:
                         return TSValueParser._format_node(
                             value_node, bytes(wrapper, "utf8"), 0
                         )
-        except Exception:
+        except (ValueError, TypeError, AttributeError):
             # If formatting fails, return the original
             return value
 
@@ -281,30 +287,29 @@ class TSValueParser:
 
         # Arrays
         if node_type == "array":
-            items = []
-            for child in node.children:
-                if child.type not in [",", "[", "]"]:
-                    items.append(
-                        TSValueParser._format_node(
-                            child, source_code, indent_level + 1
-                        )
-                    )
+            items = [
+                TSValueParser._format_node(child, source_code, indent_level + 1)
+                for child in node.children
+                if child.type not in [",", "[", "]"]
+            ]
 
-            # Format based on complexity - for const objects, always use multi-line format
+            # Format based on complexity - for const objects, always use
+            # multi-line format
             if len(items) == 0:
                 return "[]"
             # For small arrays with simple items, use single-line format
             if (
                 indent_level > 0
-                and len(items) <= 3
-                and all(len(item) < 30 for item in items)
+                and len(items) <= MAX_INLINE_ARRAY_ITEMS
+                and all(len(item) < MAX_INLINE_ITEM_LENGTH for item in items)
             ):
                 result = f"[{', '.join(items)}]"
                 if comments:
                     return f"{' '.join(comments)} {result}"
                 return result
 
-            # For larger arrays or top-level arrays (likely constants), use multi-line format
+            # For larger arrays or top-level arrays (likely constants), use
+            # multi-line format
             indent = "  " * indent_level
             inner_indent = "  " * (indent_level + 1)
             result = (
@@ -313,7 +318,8 @@ class TSValueParser:
                 + f"\n{indent}]"
             )
             if comments and indent_level == 0:
-                # Only add comments at the top level to avoid messing up nested formatting
+                # Only add comments at the top level to avoid messing up
+                # nested formatting
                 result = f"{' '.join(comments)}\n{result}"
             return result
 
@@ -338,18 +344,20 @@ class TSValueParser:
             if len(pairs) == 0:
                 return "{}"
 
-            # For small objects with simple properties at nested levels, use single-line format
+            # For small objects with simple properties at nested levels, use
+            # single-line format
             if (
                 indent_level > 0
-                and len(pairs) <= 2
-                and all(len(pair) < 40 for pair in pairs)
+                and len(pairs) <= MAX_INLINE_OBJECT_PAIRS
+                and all(len(pair) < MAX_INLINE_PAIR_LENGTH for pair in pairs)
             ):
                 result = f"{{ {', '.join(pairs)} }}"
                 if comments:
                     return f"{' '.join(comments)} {result}"
                 return result
 
-            # For larger objects or top-level objects (likely constants), use multi-line format
+            # For larger objects or top-level objects (likely constants), use
+            # multi-line format
             indent = "  " * indent_level
             inner_indent = "  " * (indent_level + 1)
             result = (
@@ -358,7 +366,8 @@ class TSValueParser:
                 + f"\n{indent}}}"
             )
             if comments and indent_level == 0:
-                # Only add comments at the top level to avoid messing up nested formatting
+                # Only add comments at the top level to avoid messing up
+                # nested formatting
                 result = f"{' '.join(comments)}\n{result}"
             return result
 

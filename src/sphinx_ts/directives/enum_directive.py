@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docutils import nodes
+from docutils.utils import SystemMessage
 from sphinx import addnodes
 from sphinx.util import logging
 
@@ -191,7 +192,7 @@ class TSAutoEnumDirective(TSAutoDirective):
                     try:
                         rst_content = self.create_rst_content(filtered_text)
                         desc_content.extend(rst_content)
-                    except Exception as e:
+                    except (SystemMessage, ValueError) as e:
                         logger.warning("Failed to parse RST content: %s", e)
                         # Fallback to simple text
                         para = nodes.paragraph()

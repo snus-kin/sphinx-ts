@@ -236,7 +236,6 @@ class TSAutoDataDirective(TSAutoDirective):
         tgroup += tbody
 
         # Get documentation for fields from JSDoc comments
-        field_docs = {}
         if ts_variable.doc_comment and ts_variable.doc_comment.params:
             pass  # field_docs would be assigned here but not currently used
 

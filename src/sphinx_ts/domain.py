@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from docutils.nodes import Node, system_message
-from docutils.parsers.rst import Directive, directives
+from docutils.nodes import Node, Text, inline
+from docutils.parsers.rst import directives
 from sphinx import addnodes
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
@@ -22,10 +22,15 @@ from sphinx.util.nodes import make_refnode
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
-    from docutils.nodes import Element, Node, reference
+    from docutils.nodes import Element, Node, reference, system_message
     from sphinx.builders import Builder
     from sphinx.environment import BuildEnvironment
-    from sphinx.util.typing import RoleFunction
+
+# Constants for object data tuple indices
+OBJDATA_DOCNAME_INDEX = 0
+OBJDATA_SYNOPSIS_INDEX = 1
+OBJDATA_NOINDEX_INDEX = 2
+OBJDATA_TUPLE_LENGTH = 3
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +57,12 @@ class TypeScriptObject(ObjectDescription[str]):
         return sig
 
     def add_target_and_index(
-        self, name: str, sig: str, signode: Element, noindex: bool = False
+        self,
+        name: str,
+        sig: str,
+        signode: Element,
+        *,
+        noindex: bool = False,
     ) -> None:
         """Add cross-reference target and entry to the general index."""
         domain = cast("TypeScriptDomain", self.env.get_domain("ts"))
@@ -72,7 +82,7 @@ class TypeScriptObject(ObjectDescription[str]):
 class TSClass(TypeScriptObject):
     """Directive for TypeScript classes."""
 
-    doc_field_types: list[Field] = [
+    doc_field_types = [
         TypedField(
             "parameter",
             label=_("Parameters"),
@@ -110,7 +120,7 @@ class TSClass(TypeScriptObject):
 class TSInterface(TypeScriptObject):
     """Directive for TypeScript interfaces."""
 
-    doc_field_types: list[Field] = [
+    doc_field_types = [
         TypedField(
             "parameter",
             label=_("Parameters"),
@@ -146,7 +156,7 @@ class TSInterface(TypeScriptObject):
 class TSMethod(TypeScriptObject):
     """Directive for TypeScript methods."""
 
-    doc_field_types: list[Field] = [
+    doc_field_types = [
         TypedField(
             "parameter",
             label=_("Parameters"),
@@ -194,7 +204,7 @@ class TSMethod(TypeScriptObject):
 class TSProperty(TypeScriptObject):
     """Directive for TypeScript properties."""
 
-    doc_field_types: list[Field] = [
+    doc_field_types = [
         Field("type", label=_("Type"), names=("type",)),
         Field("default", label=_("Default"), names=("default",)),
         Field("example", label=_("Example"), names=("example",)),
@@ -219,7 +229,7 @@ class TSProperty(TypeScriptObject):
 class TSFunction(TypeScriptObject):
     """Directive for TypeScript functions."""
 
-    doc_field_types: list[Field] = [
+    doc_field_types = [
         TypedField(
             "parameter",
             label=_("Parameters"),
@@ -271,7 +281,7 @@ class TSFunction(TypeScriptObject):
 class TSVariable(TypeScriptObject):
     """Directive for TypeScript variables/constants."""
 
-    doc_field_types: list[Field] = [
+    doc_field_types = [
         Field("type", label=_("Type"), names=("type",)),
         Field("value", label=_("Value"), names=("value",)),
         Field("example", label=_("Example"), names=("example",)),
@@ -331,8 +341,6 @@ class TSParamRole(SphinxRole):
 
     def run(self) -> tuple[list[Node], list[system_message]]:
         """Run the role."""
-        from docutils.nodes import Text, inline
-
         node = inline(classes=["sig-name", "descname"])
         node += Text(self.text)
 
@@ -342,7 +350,7 @@ class TSParamRole(SphinxRole):
 class TSEnum(TypeScriptObject):
     """Directive for TypeScript enums."""
 
-    doc_field_types: list[Field] = [
+    doc_field_types = [
         Field("example", label=_("Example"), names=("example",)),
         Field("since", label=_("Since"), names=("since",)),
         Field("deprecated", label=_("Deprecated"), names=("deprecated",)),
@@ -375,7 +383,7 @@ class TypeScriptDomain(Domain):
     name = "ts"
     label = "TypeScript"
 
-    object_types: dict[str, ObjType] = {
+    object_types = {
         "class": ObjType("class", "class", "obj"),
         "interface": ObjType("interface", "interface", "obj"),
         "enum": ObjType("enum", "enum", "obj"),
@@ -385,7 +393,7 @@ class TypeScriptDomain(Domain):
         "variable": ObjType("variable", "var", "variable", "obj"),
     }
 
-    directives: dict[str, type[Directive]] = {
+    directives = {
         "class": TSClass,
         "interface": TSInterface,
         "enum": TSEnum,
@@ -395,7 +403,7 @@ class TypeScriptDomain(Domain):
         "variable": TSVariable,
     }
 
-    roles: dict[str, RoleFunction | TSXRefRole | SphinxRole] = {
+    roles = {
         "class": TSXRefRole(),
         "interface": TSXRefRole(),
         "enum": TSXRefRole(),
@@ -407,7 +415,7 @@ class TypeScriptDomain(Domain):
         "param": TSParamRole(),
     }
 
-    initial_data: dict[str, Any] = {
+    initial_data = {
         "objects": {},
     }
 
@@ -450,7 +458,8 @@ class TypeScriptDomain(Domain):
         logger = logging.getLogger(__name__)
         logger.debug("Resolving TypeScript xref: %s:%s", typ, target)
 
-        # Handle method and property references with class/interface prefix (e.g. Class.method)
+        # Handle method and property references with class/interface prefix
+        # such as Class.method
         if "." in target and (typ in ["meth", "prop", "method", "property"]):
             class_name, member_name = target.split(".", 1)
 
@@ -562,7 +571,10 @@ class TypeScriptDomain(Domain):
                 obj_data = self.data["objects"][obj_type][target]
                 docname = obj_data[0]
                 # Check if we should include this in results (not noindex)
-                if len(obj_data) < 3 or not obj_data[2]:
+                if (
+                    len(obj_data) < OBJDATA_TUPLE_LENGTH
+                    or not obj_data[OBJDATA_NOINDEX_INDEX]
+                ):
                     refnode = make_refnode(
                         builder,
                         fromdocname,
@@ -581,7 +593,7 @@ class TypeScriptDomain(Domain):
         for obj_type, objects in self.data["objects"].items():
             for name, obj_data in objects.items():
                 # Unpack object data with support for older format
-                if len(obj_data) >= 3:
+                if len(obj_data) >= OBJDATA_TUPLE_LENGTH:
                     docname, synopsis, noindex = obj_data
                 else:
                     docname, synopsis = obj_data
@@ -615,6 +627,7 @@ class TypeScriptDomain(Domain):
         name: str,
         _target: str,
         _location: Element | None = None,
+        *,
         noindex: bool = False,
     ) -> None:
         """Note a TypeScript object for cross-referencing.
