@@ -1,6 +1,6 @@
 """TypeScript Interface Auto-Directive Module.
 
-Contains the TSAutoInterfaceDirective class for auto-documenting TypeScript interfaces.
+Contains the TSAutoInterfaceDirective class for auto-documenting interfaces.
 """
 
 from __future__ import annotations

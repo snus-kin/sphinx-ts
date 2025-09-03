@@ -12,10 +12,12 @@ from docutils import nodes
 from sphinx import addnodes
 from sphinx.util import logging
 
+from sphinx_ts.parser import TSValueParser
+
 from .base import TSAutoDirective
 
 if TYPE_CHECKING:
-    from sphinx_ts.parser import TSValueParser, TSVariable
+    from sphinx_ts.parser import TSVariable
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,7 @@ class TSAutoDataDirective(TSAutoDirective):
                 doc_lines.extend(
                     [".. rubric:: Examples", "   :class: ts-examples", ""]
                 )
-                # Use only one code block for all examples to prevent duplication
+                # Use only one code block for all examples to prevent duplicate
                 doc_lines.append(".. code-block:: typescript")
                 doc_lines.append("")
                 for example in ts_variable.doc_comment.examples:
@@ -98,7 +100,8 @@ class TSAutoDataDirective(TSAutoDirective):
                     [
                         ".. warning::",
                         "",
-                        f"   **Deprecated**: {ts_variable.doc_comment.deprecated}",
+                        f"   **Deprecated**: "
+                        f"{ts_variable.doc_comment.deprecated}",
                         "",
                     ]
                 )
@@ -108,7 +111,8 @@ class TSAutoDataDirective(TSAutoDirective):
                     [
                         ".. note::",
                         "",
-                        f"   Available since version {ts_variable.doc_comment.since}",
+                        f"   Available since version "
+                        f"{ts_variable.doc_comment.since}",
                         "",
                     ]
                 )
@@ -135,7 +139,7 @@ class TSAutoDataDirective(TSAutoDirective):
 
             value_data = TSValueParser.parse_value(ts_variable.value)
 
-            # For const values (which are likely to have complex properties), use a code block
+            # For const values with complex properties, use a code block
             if ts_variable.kind == "const" and (
                 value_data["type"] == "object"
                 or value_data["type"].endswith("[]")
@@ -205,7 +209,7 @@ class TSAutoDataDirective(TSAutoDirective):
     def _create_value_table(
         self, ts_variable: TSVariable
     ) -> nodes.table | None:
-        """Create a table showing the variable value with type info and descriptions."""
+        """Create a table showing the variable value with type info."""
         # Create a table for the value
         table = nodes.table(classes=["variable-value-table"])
         tgroup = nodes.tgroup(cols=4)
@@ -234,7 +238,7 @@ class TSAutoDataDirective(TSAutoDirective):
         # Get documentation for fields from JSDoc comments
         field_docs = {}
         if ts_variable.doc_comment and ts_variable.doc_comment.params:
-            field_docs = ts_variable.doc_comment.params
+            pass  # field_docs would be assigned here but not currently used
 
         # If value is None, return None
         if ts_variable.value is None:
@@ -245,7 +249,7 @@ class TSAutoDataDirective(TSAutoDirective):
 
         value_data = TSValueParser.parse_value(ts_variable.value)
 
-        # Check if it's a const with a complex value - we'll use a code block instead
+        # Check if it's a const with a complex value - use a code block
         if ts_variable.kind == "const" and (
             (value_data["type"] == "object" and value_data["properties"])
             or value_data["type"].endswith("[]")

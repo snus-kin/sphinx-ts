@@ -7,4 +7,4 @@ that can be used across different directive types.
 from __future__ import annotations
 
 # This module is reserved for future common functionality between directives.
-# Currently, all formatting logic is implemented directly in the base directive class.
+# Currently, all formatting logic is implemented directly in the base class.

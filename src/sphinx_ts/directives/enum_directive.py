@@ -181,16 +181,18 @@ class TSAutoEnumDirective(TSAutoDirective):
             if desc_text:
                 # Filter out complex directives for member comments too
                 filtered_text = []
-                for line in desc_text:
-                    if not line.strip().startswith(".. "):
-                        filtered_text.append(line)
+                filtered_text = [
+                    line
+                    for line in desc_text
+                    if not line.strip().startswith(".. ")
+                ]
 
                 if filtered_text:
                     try:
                         rst_content = self.create_rst_content(filtered_text)
                         desc_content.extend(rst_content)
                     except Exception as e:
-                        logger.warning(f"Failed to parse RST content: {e}")
+                        logger.warning("Failed to parse RST content: %s", e)
                         # Fallback to simple text
                         para = nodes.paragraph()
                         para += nodes.Text(member.doc_comment.description)

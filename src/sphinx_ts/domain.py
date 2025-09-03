@@ -5,10 +5,8 @@ Provides a Sphinx domain for TypeScript with roles and object types.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from docutils.nodes import Element as DocElement
 from docutils.nodes import Node, system_message
 from docutils.parsers.rst import Directive, directives
 from sphinx import addnodes
@@ -22,7 +20,7 @@ from sphinx.util.docutils import SphinxRole
 from sphinx.util.nodes import make_refnode
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
 
     from docutils.nodes import Element, Node, reference
     from sphinx.builders import Builder
@@ -187,12 +185,8 @@ class TSMethod(TypeScriptObject):
                 args_part[1:-1], args_part[1:-1]
             )
             # Cast to proper node type for append operation
-            param_list = signode[-1]
-            if isinstance(param_list, DocElement):
-                param_list.append(param_node)
-            else:
-                # Use proper append method instead of +=
-                param_list.append(param_node)
+            param_list = cast("addnodes.desc_parameterlist", signode[-1])
+            param_list.append(param_node)
 
         return method_name
 
@@ -268,12 +262,8 @@ class TSFunction(TypeScriptObject):
                 args_part[1:-1], args_part[1:-1]
             )
             # Cast to proper node type for append operation
-            param_list = signode[-1]
-            if isinstance(param_list, DocElement):
-                param_list.append(param_node)
-            else:
-                # Use proper append method instead of +=
-                param_list.append(param_node)
+            param_list = cast("addnodes.desc_parameterlist", signode[-1])
+            param_list.append(param_node)
 
         return func_name
 
