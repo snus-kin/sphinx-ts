@@ -44,10 +44,10 @@ html_static_path = []
 # -- TypeScript Sphinx Configuration ----------------------------------------
 
 # Directories to scan for TypeScript files (relative to conf.py)
-ts_sphinx_src_dirs = ["../examples"]
+sphinx_ts_src_dirs = ["../examples"]
 
 # Patterns for files to exclude from parsing
-ts_sphinx_exclude_patterns = [
+sphinx_ts_exclude_patterns = [
     "**/*.test.ts",
     "**/*.spec.ts",
     "**/node_modules/**",
@@ -55,10 +55,10 @@ ts_sphinx_exclude_patterns = [
 ]
 
 # Whether to include private members in documentation
-ts_sphinx_include_private = True
+sphinx_ts_include_private = True
 
 # Whether to include inherited members in class documentation
-ts_sphinx_include_inherited = True
+sphinx_ts_include_inherited = True
 
 # -- Intersphinx Configuration ----------------------------------------------
 

@@ -43,10 +43,21 @@ class TSDocComment:
             processed_line = original_line.strip()
             if processed_line.startswith("/**"):
                 processed_line = processed_line[3:].strip()
+                # Handle case where */ is on the same line as /**
+                if processed_line.endswith("*/"):
+                    processed_line = processed_line[:-2].strip()
             elif processed_line.startswith("*/"):
                 continue
             elif processed_line.startswith("*"):
                 processed_line = processed_line[1:].strip()
+                # Handle case where */ is at the end of a line starting with *
+                if processed_line.endswith("*/"):
+                    processed_line = processed_line[:-2].strip()
+
+            # Also handle case where */ appears at end of any line
+            if processed_line.endswith("*/"):
+                processed_line = processed_line[:-2].strip()
+
             lines.append(processed_line)
 
         content = "\n".join(lines).strip()
@@ -311,6 +322,72 @@ class TSVariable:
         return hash(self.name.lower())
 
 
+class TSEnumMember:
+    """Represents a TypeScript enum member."""
+
+    def __init__(self, name: str) -> None:
+        """Initialize a TypeScript enum member.
+
+        Args:
+            name: The name of the enum member
+
+        """
+        self.name = name
+        self.doc_comment: TSDocComment | None = None
+        self.value: str | None = None
+        self.computed_value: bool = False
+
+    def __lt__(self, other: Any) -> bool:
+        """Support sorting of TSEnumMember objects by name."""
+        if isinstance(other, TSEnumMember):
+            return self.name.lower() < other.name.lower()
+        return NotImplemented
+
+    def __eq__(self, other: object) -> bool:
+        """Support equality comparison of TSEnumMember objects."""
+        if isinstance(other, TSEnumMember):
+            return self.name.lower() == other.name.lower()
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        """Support using TSEnumMember objects as dictionary keys."""
+        return hash(self.name.lower())
+
+
+class TSEnum:
+    """Represents a TypeScript enum."""
+
+    def __init__(self, name: str) -> None:
+        """Initialize a TypeScript enum.
+
+        Args:
+            name: The name of the enum
+
+        """
+        self.name = name
+        self.doc_comment: TSDocComment | None = None
+        self.members: list[TSEnumMember] = []
+        self.is_const = False
+        self.is_export = False
+        self.is_declare = False
+
+    def __lt__(self, other: Any) -> bool:
+        """Support sorting of TSEnum objects by name."""
+        if isinstance(other, TSEnum):
+            return self.name.lower() < other.name.lower()
+        return NotImplemented
+
+    def __eq__(self, other: object) -> bool:
+        """Support equality comparison of TSEnum objects."""
+        if isinstance(other, TSEnum):
+            return self.name.lower() == other.name.lower()
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        """Support using TSEnum objects as dictionary keys."""
+        return hash(self.name.lower())
+
+
 class TSValueParser:
     """Parser for TypeScript values and literals."""
 
@@ -364,7 +441,7 @@ class TSValueParser:
             return {"type": "string", "value": value, "properties": []}
         if value_node.type == "number":
             return {"type": "number", "value": value, "properties": []}
-        if value_node.type == "true" or value_node.type == "false":
+        if value_node.type in {"true", "false"}:
             return {"type": "boolean", "value": value, "properties": []}
         if value_node.type == "null":
             return {"type": "null", "value": "null", "properties": []}
@@ -392,7 +469,7 @@ class TSValueParser:
                     ]
 
                     # Clean up the key if it's a string
-                    if key.startswith('"') or key.startswith("'"):
+                    if key.startswith(('"', "'")):
                         key = key[1:-1]
 
                     # Parse the property value recursively
@@ -411,9 +488,7 @@ class TSValueParser:
                     elif value_node.type == "number":
                         prop_value = value
                         prop_type = "number"
-                    elif (
-                        value_node.type == "true" or value_node.type == "false"
-                    ):
+                    elif value_node.type in {"true", "false"}:
                         prop_value = value
                         prop_type = "boolean"
                     elif value_node.type == "null":
@@ -454,7 +529,7 @@ class TSValueParser:
                     item_type = "string"
                 elif child.type == "number":
                     item_type = "number"
-                elif child.type == "true" or child.type == "false":
+                elif child.type in {"true", "false"}:
                     item_type = "boolean"
 
                 element_types.add(item_type)
@@ -528,10 +603,9 @@ class TSValueParser:
                             break
 
                     if value_node:
-                        formatted = TSValueParser._format_node(
+                        return TSValueParser._format_node(
                             value_node, bytes(wrapper, "utf8"), 0
                         )
-                        return formatted
         except Exception:
             # If formatting fails, return the original
             return value
@@ -696,6 +770,7 @@ class TSParser:
                 "interfaces": [],
                 "variables": [],
                 "functions": [],
+                "enums": [],
                 "file_path": str(file_path),
             }
 
@@ -709,6 +784,7 @@ class TSParser:
             "interfaces": [],
             "variables": [],
             "functions": [],
+            "enums": [],
             "file_path": str(file_path),
         }
 
@@ -732,6 +808,11 @@ class TSParser:
             interface_obj = self._parse_interface(node, source_code)
             if interface_obj:
                 result["interfaces"].append(interface_obj)
+
+        elif node.type == "enum_declaration":
+            enum_obj = self._parse_enum(node, source_code)
+            if enum_obj:
+                result["enums"].append(enum_obj)
 
         elif node.type == "variable_declaration":
             variables = self._parse_variable_declaration(node, source_code)
@@ -762,11 +843,20 @@ class TSParser:
                     function_obj = self._parse_function(child, source_code)
                     if function_obj:
                         result["functions"].append(function_obj)
+                elif child.type == "enum_declaration":
+                    enum_obj = self._parse_enum(child, source_code)
+                    if enum_obj:
+                        result["enums"].append(enum_obj)
 
         # Recursively traverse child nodes
         # Skip children if this is an export statement that we've already processed
         if node.type != "export_statement" or not any(
-            child.type in ["variable_declaration", "lexical_declaration"]
+            child.type
+            in [
+                "variable_declaration",
+                "lexical_declaration",
+                "enum_declaration",
+            ]
             for child in node.children
         ):
             for child in node.children:
@@ -838,7 +928,7 @@ class TSParser:
                     else:
                         class_obj.methods.append(method)
 
-            elif child.type == "field_definition":
+            elif child.type in ["field_definition", "public_field_definition"]:
                 prop = self._parse_property(child, source_code)
                 if prop:
                     class_obj.properties.append(prop)
@@ -879,7 +969,7 @@ class TSParser:
         source_code: bytes,
     ) -> TSProperty | None:
         """Parse a property definition."""
-        name_node = node.child_by_field_name("property")
+        name_node = node.child_by_field_name("name")
         if not name_node:
             return None
 
@@ -928,6 +1018,96 @@ class TSParser:
             interface_obj.is_export = True
 
         return interface_obj
+
+    def _parse_enum(
+        self,
+        node: tree_sitter.Node,
+        source_code: bytes,
+    ) -> TSEnum | None:
+        """Parse an enum declaration."""
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            return None
+
+        enum_name = self._get_node_text(name_node, source_code)
+        enum_obj = TSEnum(enum_name)
+
+        # Get documentation comment
+        enum_obj.doc_comment = self._find_doc_comment(node, source_code)
+
+        # If no comment found and we're in an export statement, check the export statement
+        if (
+            not enum_obj.doc_comment
+            and node.parent
+            and node.parent.type == "export_statement"
+        ):
+            enum_obj.doc_comment = self._find_doc_comment(
+                node.parent, source_code
+            )
+
+        # Check for const enum
+        for child in node.children:
+            if child.type == "const" or (
+                hasattr(child, "text") and child.text == b"const"
+            ):
+                enum_obj.is_const = True
+                break
+
+        # Check for declare enum
+        parent = node.parent
+        if parent and parent.type == "ambient_declaration":
+            enum_obj.is_declare = True
+
+        # Check for export modifier
+        if parent and parent.type == "export_statement":
+            enum_obj.is_export = True
+
+        # Parse enum body
+        body_node = node.child_by_field_name("body")
+        if body_node:
+            self._parse_enum_body(body_node, source_code, enum_obj)
+
+        return enum_obj
+
+    def _parse_enum_body(
+        self,
+        body_node: tree_sitter.Node,
+        source_code: bytes,
+        enum_obj: TSEnum,
+    ) -> None:
+        """Parse enum body members."""
+        for child in body_node.children:
+            if child.type == "property_identifier":
+                # Simple enum member without value
+                member_name = self._get_node_text(child, source_code)
+                member = TSEnumMember(member_name)
+                member.doc_comment = self._find_doc_comment(child, source_code)
+                enum_obj.members.append(member)
+            elif child.type == "enum_assignment":
+                # Enum member with assignment
+                name_node = child.child_by_field_name("name")
+                value_node = child.child_by_field_name("value")
+
+                if name_node:
+                    member_name = self._get_node_text(name_node, source_code)
+                    member = TSEnumMember(member_name)
+                    member.doc_comment = self._find_doc_comment(
+                        child, source_code
+                    )
+
+                    if value_node:
+                        member.value = self._get_node_text(
+                            value_node, source_code
+                        )
+                        # Check if the value is computed (contains expressions)
+                        member.computed_value = value_node.type not in [
+                            "string",
+                            "number",
+                            "true",
+                            "false",
+                        ]
+
+                    enum_obj.members.append(member)
 
     def _parse_interface_body(
         self,
@@ -1001,7 +1181,7 @@ class TSParser:
         if not node.parent:
             return None
 
-        siblings = [child for child in node.parent.children]
+        siblings = list(node.parent.children)
         for i, sibling in enumerate(siblings):
             if sibling.id == node.id and i > 0:
                 return siblings[i - 1]

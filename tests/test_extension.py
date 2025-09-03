@@ -5,22 +5,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+import sphinx_ts
 from sphinx_ts import setup
 from sphinx_ts.directives import (
     TSAutoClassDirective,
     TSAutoDataDirective,
     TSAutoInterfaceDirective,
 )
-
-import ts_sphinx
-from ts_sphinx import setup
-from ts_sphinx.directives import (
-    TSAutoClassDirective,
-    TSAutoDataDirective,
-    TSAutoInterfaceDirective,
-)
-from ts_sphinx.domain import TypeScriptDomain
-from ts_sphinx.parser import (
+from sphinx_ts.domain import TypeScriptDomain
+from sphinx_ts.parser import (
     TSClass,
     TSDocComment,
     TSInterface,
@@ -35,7 +28,7 @@ EXPECTED_DIRECTIVES_COUNT = 3
 EXPECTED_CONFIG_VALUES_COUNT = 4
 
 
-class MockSphinxApp:
+class MockSphinxApp(Sphinx):
     """Mock Sphinx application for testing."""
 
     def __init__(self) -> None:
@@ -73,8 +66,8 @@ class TestExtensionSetup:
 
     def test_setup_function_exists(self) -> None:
         """Test that the setup function exists and is callable."""
-        assert hasattr(ts_sphinx, "setup")
-        assert callable(ts_sphinx.setup)
+        assert hasattr(sphinx_ts, "setup")
+        assert callable(sphinx_ts.setup)
 
     def test_setup_returns_metadata(self) -> None:
         """Test that setup function returns proper metadata."""
@@ -119,10 +112,10 @@ class TestExtensionSetup:
         setup(app)
 
         expected_configs = [
-            ("ts_sphinx_src_dirs", [], "env", [list]),
-            ("ts_sphinx_exclude_patterns", [], "env", [list]),
-            ("ts_sphinx_include_private", False, "env", [bool]),
-            ("ts_sphinx_include_inherited", True, "env", [bool]),
+            ("sphinx_ts_src_dirs", [], "env", [list]),
+            ("sphinx_ts_exclude_patterns", [], "env", [list]),
+            ("sphinx_ts_include_private", False, "env", [bool]),
+            ("sphinx_ts_include_inherited", True, "env", [bool]),
         ]
 
         assert len(app.added_config_values) == EXPECTED_CONFIG_VALUES_COUNT
@@ -156,10 +149,10 @@ class TestExtensionSetup:
             assert mock_app.add_config_value.call_count == expected_config_count
             config_calls = mock_app.add_config_value.call_args_list
             config_names = [call[0][0] for call in config_calls]
-            assert "ts_sphinx_src_dirs" in config_names
-            assert "ts_sphinx_exclude_patterns" in config_names
-            assert "ts_sphinx_include_private" in config_names
-            assert "ts_sphinx_include_inherited" in config_names
+            assert "sphinx_ts_src_dirs" in config_names
+            assert "sphinx_ts_exclude_patterns" in config_names
+            assert "sphinx_ts_include_private" in config_names
+            assert "sphinx_ts_include_inherited" in config_names
 
             # Verify return value
             assert isinstance(result, dict)
@@ -171,22 +164,22 @@ class TestExtensionMetadata:
 
     def test_extension_has_version(self) -> None:
         """Test that extension has version information."""
-        assert hasattr(ts_sphinx, "__version__")
-        assert isinstance(ts_sphinx.__version__, str)
-        assert len(ts_sphinx.__version__) > 0
+        assert hasattr(sphinx_ts, "__version__")
+        assert isinstance(sphinx_ts.__version__, str)
+        assert len(sphinx_ts.__version__) > 0
 
     def test_version_consistency(self) -> None:
         """Test that version is consistent between setup and __version__."""
         app = MockSphinxApp()
         result = setup(app)
 
-        assert result["version"] == ts_sphinx.__version__
+        assert result["version"] == sphinx_ts.__version__
 
     def test_extension_has_docstring(self) -> None:
         """Test that extension module has proper documentation."""
-        assert ts_sphinx.__doc__ is not None
-        assert len(ts_sphinx.__doc__.strip()) > 0
-        assert "TypeScript Sphinx Extension" in ts_sphinx.__doc__
+        assert sphinx_ts.__doc__ is not None
+        assert len(sphinx_ts.__doc__.strip()) > 0
+        assert "TypeScript Sphinx Extension" in sphinx_ts.__doc__
 
 
 class TestExtensionImports:
@@ -234,7 +227,7 @@ class TestConfigurationDefaults:
             (
                 config
                 for config in app.added_config_values
-                if config[0] == "ts_sphinx_src_dirs"
+                if config[0] == "sphinx_ts_src_dirs"
             ),
             None,
         )
@@ -253,7 +246,7 @@ class TestConfigurationDefaults:
             (
                 config
                 for config in app.added_config_values
-                if config[0] == "ts_sphinx_exclude_patterns"
+                if config[0] == "sphinx_ts_exclude_patterns"
             ),
             None,
         )
@@ -272,7 +265,7 @@ class TestConfigurationDefaults:
             (
                 config
                 for config in app.added_config_values
-                if config[0] == "ts_sphinx_include_private"
+                if config[0] == "sphinx_ts_include_private"
             ),
             None,
         )
@@ -291,7 +284,7 @@ class TestConfigurationDefaults:
             (
                 config
                 for config in app.added_config_values
-                if config[0] == "ts_sphinx_include_inherited"
+                if config[0] == "sphinx_ts_include_inherited"
             ),
             None,
         )
@@ -361,7 +354,7 @@ class TestExtensionDocumentation:
 
     def test_module_has_proper_docstring(self) -> None:
         """Test that main module has comprehensive docstring."""
-        docstring = ts_sphinx.__doc__
+        docstring = sphinx_ts.__doc__
 
         assert docstring is not None
         assert "TypeScript Sphinx Extension" in docstring

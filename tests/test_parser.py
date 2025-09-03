@@ -6,9 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from ts_sphinx.parser import (
+from sphinx_ts.parser import (
     TSClass,
     TSDocComment,
+    TSEnum,
+    TSEnumMember,
     TSInterface,
     TSMethod,
     TSParser,
@@ -246,6 +248,184 @@ class TestTSMemberClasses:
         assert ts_method.kind == "method"
         assert ts_method.parameters == []
         assert not ts_method.is_async
+
+
+class TestTSEnumClasses:
+    """Test TypeScript enum data classes."""
+
+    def test_ts_enum_creation(self) -> None:
+        """Test creating a TSEnum instance."""
+        ts_enum = TSEnum("MyEnum")
+        assert ts_enum.name == "MyEnum"
+        assert ts_enum.members == []
+        assert not ts_enum.is_const
+        assert not ts_enum.is_export
+        assert not ts_enum.is_declare
+
+    def test_ts_enum_member_creation(self) -> None:
+        """Test creating a TSEnumMember instance."""
+        member = TSEnumMember("VALUE")
+        assert member.name == "VALUE"
+        assert member.value is None
+        assert not member.computed_value
+
+    def test_ts_enum_member_with_value(self) -> None:
+        """Test creating a TSEnumMember with a value."""
+        member = TSEnumMember("STATUS")
+        member.value = '"active"'
+        assert member.name == "STATUS"
+        assert member.value == '"active"'
+        assert not member.computed_value
+
+    def test_parse_basic_enum(self) -> None:
+        """Test parsing a basic TypeScript enum."""
+        content = """
+/**
+ * Basic color enum.
+ */
+export enum Color {
+    /** Red color */
+    RED = "red",
+    /** Blue color */
+    BLUE = "blue"
+}
+"""
+        temp_dir = tempfile.mkdtemp()
+        try:
+            file_path = Path(temp_dir) / "test.ts"
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(content)
+
+            parser = TSParser()
+            result = parser.parse_file(file_path)
+
+            assert len(result["enums"]) == 1
+            enum = result["enums"][0]
+            assert enum.name == "Color"
+            assert enum.is_export
+            assert not enum.is_const
+            assert not enum.is_declare
+            assert len(enum.members) == 2
+
+            # Check first member
+            red_member = enum.members[0]
+            assert red_member.name == "RED"
+            assert red_member.value == '"red"'
+            assert not red_member.computed_value
+
+            # Check second member
+            blue_member = enum.members[1]
+            assert blue_member.name == "BLUE"
+            assert blue_member.value == '"blue"'
+            assert not blue_member.computed_value
+
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def test_parse_const_enum(self) -> None:
+        """Test parsing a const enum."""
+        content = """
+export const enum Direction {
+    NORTH = "north",
+    SOUTH = "south"
+}
+"""
+        temp_dir = tempfile.mkdtemp()
+        try:
+            file_path = Path(temp_dir) / "test.ts"
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(content)
+
+            parser = TSParser()
+            result = parser.parse_file(file_path)
+
+            assert len(result["enums"]) == 1
+            enum = result["enums"][0]
+            assert enum.name == "Direction"
+            assert enum.is_export
+            assert enum.is_const
+            assert not enum.is_declare
+
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def test_parse_declare_enum(self) -> None:
+        """Test parsing a declare enum."""
+        content = """
+declare enum ExternalEnum {
+    FIRST,
+    SECOND
+}
+"""
+        temp_dir = tempfile.mkdtemp()
+        try:
+            file_path = Path(temp_dir) / "test.ts"
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(content)
+
+            parser = TSParser()
+            result = parser.parse_file(file_path)
+
+            assert len(result["enums"]) == 1
+            enum = result["enums"][0]
+            assert enum.name == "ExternalEnum"
+            assert not enum.is_export
+            assert not enum.is_const
+            assert enum.is_declare
+
+            # Check auto-increment members
+            first_member = enum.members[0]
+            assert first_member.name == "FIRST"
+            assert first_member.value is None
+
+            second_member = enum.members[1]
+            assert second_member.name == "SECOND"
+            assert second_member.value is None
+
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def test_parse_computed_enum(self) -> None:
+        """Test parsing enum with computed values."""
+        content = """
+export enum Permission {
+    READ = 1 << 0,
+    WRITE = 1 << 1,
+    ADMIN = READ | WRITE
+}
+"""
+        temp_dir = tempfile.mkdtemp()
+        try:
+            file_path = Path(temp_dir) / "test.ts"
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(content)
+
+            parser = TSParser()
+            result = parser.parse_file(file_path)
+
+            assert len(result["enums"]) == 1
+            enum = result["enums"][0]
+            assert enum.name == "Permission"
+
+            # Check computed values
+            read_member = enum.members[0]
+            assert read_member.name == "READ"
+            assert read_member.value == "1 << 0"
+            assert read_member.computed_value
+
+            write_member = enum.members[1]
+            assert write_member.name == "WRITE"
+            assert write_member.value == "1 << 1"
+            assert write_member.computed_value
+
+            admin_member = enum.members[2]
+            assert admin_member.name == "ADMIN"
+            assert admin_member.value == "READ | WRITE"
+            assert admin_member.computed_value
+
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

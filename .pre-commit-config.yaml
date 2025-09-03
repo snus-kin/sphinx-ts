@@ -15,10 +15,10 @@ repos:
       - id: check-case-conflict
       - id: check-docstring-first
       - id: check-added-large-files
-        args: ['--maxkb=500']
+        args: ["--maxkb=500"]
       - id: debug-statements
       - id: mixed-line-ending
-        args: ['--fix=lf']
+        args: ["--fix=lf"]
 
   # Python code formatting
   - repo: https://github.com/psf/black
@@ -40,7 +40,7 @@ repos:
     rev: 7.0.0
     hooks:
       - id: flake8
-        args: [--max-line-length=88, --extend-ignore=E203,W503]
+        args: [--max-line-length=88, --extend-ignore=E203, W503]
         additional_dependencies:
           - flake8-bugbear
           - flake8-comprehensions
@@ -68,7 +68,17 @@ repos:
     rev: 6.3.0
     hooks:
       - id: pydocstyle
-        args: [--convention=google, --add-ignore=D100,D101,D102,D103,D104,D105,D107]
+        args:
+          [
+            --convention=google,
+            --add-ignore=D100,
+            D101,
+            D102,
+            D103,
+            D104,
+            D105,
+            D107,
+          ]
         files: ^src/
 
   # Markdown formatting
@@ -90,7 +100,7 @@ repos:
     rev: v2.2.6
     hooks:
       - id: codespell
-        args: [--ignore-words-list=hist,nd,te,tha]
+        args: [--ignore-words-list=hist, nd, te, tha]
         exclude: >
           (?x)^(
             .*\.po|
@@ -112,7 +122,7 @@ repos:
 
       - id: test-imports
         name: test-imports
-        entry: python -c "import ts_sphinx; print('Import successful')"
+        entry: python -c "import sphinx_ts; print('Import successful')"
         language: system
         pass_filenames: false
         stages: [manual]
@@ -120,7 +130,7 @@ repos:
 # Configuration
 default_stages: [commit]
 fail_fast: false
-minimum_pre_commit_version: '2.20.0'
+minimum_pre_commit_version: "2.20.0"
 
 # Skip certain hooks for specific file types
 exclude: |

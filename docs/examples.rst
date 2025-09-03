@@ -253,3 +253,68 @@ Source Information
 - Module exports
 
 This example demonstrates the power of the TypeScript Sphinx Extension to automatically generate comprehensive documentation from well-commented TypeScript source code.
+
+Enums Documentation
+===================
+
+This section demonstrates the enum auto-documentation capabilities.
+
+HTTP Status Categories
+----------------------
+
+.. ts:autoenum:: HttpStatusCategory
+
+Log Levels
+----------
+
+.. ts:autoenum:: LogLevel
+
+User Roles
+----------
+
+.. ts:autoenum:: UserRole
+
+Colors
+------
+
+.. ts:autoenum:: Color
+
+Directions (Const Enum)
+-----------------------
+
+.. ts:autoenum:: Direction
+
+Permissions (Bit Flags)
+-----------------------
+
+.. ts:autoenum:: Permission
+
+Status Codes
+------------
+
+.. ts:autoenum:: StatusCode
+
+External Enum (Declare)
+-----------------------
+
+.. ts:autoenum:: ExternalEnum
+
+Cross-References
+================
+
+You can reference TypeScript objects using the provided roles:
+
+- Classes: :ts:class:`Calculator`
+- Interfaces: :ts:interface:`CalculatorConfig`
+- Enums: :ts:enum:`HttpStatusCategory`
+- Methods: :ts:meth:`Calculator.add`
+- Properties: :ts:prop:`Calculator.memory`
+- Functions: :ts:func:`isSafeInteger`
+- Variables: :ts:var:`DEFAULT_CONFIG`
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

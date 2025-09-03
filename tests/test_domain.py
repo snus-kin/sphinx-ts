@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from ts_sphinx.domain import TSXRefRole, TypeScriptDomain
+from sphinx_ts.domain import TSXRefRole, TypeScriptDomain
 
 # Test constants
 EXPECTED_OBJECTS_COUNT = 3

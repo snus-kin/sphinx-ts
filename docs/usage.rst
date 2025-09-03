@@ -28,27 +28,27 @@ Add the extension to your Sphinx ``conf.py``:
 .. code-block:: python
 
    extensions = [
-       'ts_sphinx',
+       'sphinx_ts',
        'sphinx.ext.autodoc',      # Optional: for Python docs too
        'sphinx.ext.viewcode',     # Optional: for source links
        'sphinx.ext.intersphinx',  # Optional: for cross-references
    ]
 
    # TypeScript Sphinx Extension Configuration
-   ts_sphinx_src_dirs = ['../examples', '../src']
-   ts_sphinx_exclude_patterns = [
+   sphinx_ts_src_dirs = ['../examples', '../src']
+   sphinx_ts_exclude_patterns = [
        '**/*.test.ts',
        '**/*.spec.ts',
        '**/node_modules/**',
        '**/*.d.ts'
    ]
-   ts_sphinx_include_private = False
-   ts_sphinx_include_inherited = True
+   sphinx_ts_include_private = False
+   sphinx_ts_include_inherited = True
 
 Configuration Options
 ~~~~~~~~~~~~~~~~~~~~
 
-.. confval:: ts_sphinx_src_dirs
+.. confval:: sphinx_ts_src_dirs
 
    List of directories to scan for TypeScript files (relative to ``conf.py``).
 
@@ -56,7 +56,7 @@ Configuration Options
 
    **Example:** ``['../src', '../lib', '../types']``
 
-.. confval:: ts_sphinx_exclude_patterns
+.. confval:: sphinx_ts_exclude_patterns
 
    List of glob patterns for files to exclude from parsing.
 
@@ -64,13 +64,13 @@ Configuration Options
 
    **Example:** ``['**/*.test.ts', '**/*.spec.ts', '**/node_modules/**']``
 
-.. confval:: ts_sphinx_include_private
+.. confval:: sphinx_ts_include_private
 
    Whether to include private members in documentation.
 
    **Default:** ``False``
 
-.. confval:: ts_sphinx_include_inherited
+.. confval:: sphinx_ts_include_inherited
 
    Whether to include inherited members in class documentation.
 
@@ -348,7 +348,7 @@ Configure multiple source directories in ``conf.py``:
 
 .. code-block:: python
 
-   ts_sphinx_src_dirs = [
+   sphinx_ts_src_dirs = [
        '../src',
        '../lib',
        '../types',
@@ -362,7 +362,7 @@ Exclude specific files or patterns:
 
 .. code-block:: python
 
-   ts_sphinx_exclude_patterns = [
+   sphinx_ts_exclude_patterns = [
        '**/*.test.ts',           # Test files
        '**/*.spec.ts',           # Spec files
        '**/*.d.ts',              # Type declarations
@@ -416,7 +416,7 @@ If you get import errors related to Tree-sitter:
 TypeScript Files Not Found
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Ensure your ``ts_sphinx_src_dirs`` paths are correct relative to ``conf.py``:
+Ensure your ``sphinx_ts_src_dirs`` paths are correct relative to ``conf.py``:
 
 .. code-block:: python
 
@@ -425,7 +425,7 @@ Ensure your ``ts_sphinx_src_dirs`` paths are correct relative to ``conf.py``:
    #   docs/conf.py
    #   src/file.ts
 
-   ts_sphinx_src_dirs = ['../src']
+   sphinx_ts_src_dirs = ['../src']
 
 No Documentation Generated
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -434,7 +434,7 @@ Check that:
 
 1. TypeScript files contain proper JSDoc comments
 2. Classes/interfaces are exported
-3. File paths are not excluded by ``ts_sphinx_exclude_patterns``
+3. File paths are not excluded by ``sphinx_ts_exclude_patterns``
 4. TypeScript syntax is valid
 
 Performance Tips

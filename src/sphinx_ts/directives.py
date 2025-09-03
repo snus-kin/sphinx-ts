@@ -19,6 +19,8 @@ from sphinx.util.docutils import SphinxDirective
 from .parser import (
     TSClass,
     TSDocComment,
+    TSEnum,
+    TSEnumMember,
     TSInterface,
     TSMethod,
     TSParser,
@@ -57,8 +59,8 @@ class TSAutoDirective(SphinxDirective):
 
     def get_source_files(self) -> list[Path]:
         """Get list of TypeScript source files to scan."""
-        src_dirs = self.config.ts_sphinx_src_dirs or ["."]
-        exclude_patterns = self.config.ts_sphinx_exclude_patterns or []
+        src_dirs = self.config.sphinx_ts_src_dirs or ["."]
+        exclude_patterns = self.config.sphinx_ts_exclude_patterns or []
 
         source_files = []
 
@@ -94,6 +96,7 @@ class TSAutoDirective(SphinxDirective):
                     "interface": "interfaces",
                     "variable": "variables",
                     "function": "functions",
+                    "enum": "enums",
                 }
                 plural_type = type_mapping.get(object_type, object_type + "s")
                 objects = parsed_data.get(plural_type, [])
@@ -545,7 +548,9 @@ class TSAutoDirective(SphinxDirective):
             example_lines = self._format_examples(method.doc_comment)
             if example_lines:
                 # Convert RST lines to docutils nodes
+                # Use rubric instead of section to exclude from TOC
                 examples_rubric = nodes.rubric(text="Examples")
+                examples_rubric["classes"] = ["ts-examples"]
                 content.append(examples_rubric)
 
                 # Create a literal block with all examples
@@ -664,7 +669,6 @@ class TSAutoDirective(SphinxDirective):
         desc = addnodes.desc(
             domain="ts",
             objtype="attribute",
-            noindex=True,  # Don't index this in the global index
         )
         desc["ids"] = [f"ts-property-{prop_id}"]
 
@@ -692,11 +696,10 @@ class TSAutoDirective(SphinxDirective):
         desc += content
 
         # Add property documentation
-        if prop.doc_comment:
-            if prop.doc_comment.description:
-                para = nodes.paragraph()
-                para += nodes.Text(prop.doc_comment.description)
-                content += para
+        if prop.doc_comment and prop.doc_comment.description:
+            para = nodes.paragraph()
+            para += nodes.Text(prop.doc_comment.description)
+            content += para
 
         return desc
 
@@ -719,7 +722,6 @@ class TSAutoClassDirective(TSAutoDirective):
             return []
 
         ts_class: TSClass = result["object"]
-        file_path = result["file_path"]
 
         # Register the class with the TypeScript domain
         self._register_object_with_domain("class", class_name, self.env.docname)
@@ -746,107 +748,53 @@ class TSAutoClassDirective(TSAutoDirective):
 
         # Register only main class in TOC, not every method and property
 
-        # Create the main class directive
-        class_node = nodes.section(ids=[f"class-{class_name}"])
+        # Create the main class descriptor with proper docutils structure
+        class_desc = addnodes.desc(domain="ts", objtype="class")
 
-        # Add basic class information
-        self._add_class_header(class_node, class_name, ts_class, file_path)
+        # Create class signature
+        class_sig = addnodes.desc_signature("", "", first=True)
+        class_sig["class"] = "sig-object ts"
+        class_sig["ids"] = [f"class-{class_name}"]
+        class_sig += addnodes.desc_annotation("", "class ")
+        class_sig += addnodes.desc_name("", class_name)
+        class_desc += class_sig
 
-        # Add constructor if present
-        self._add_constructor_section(class_node, ts_class)
+        # Create class content container
+        class_content = addnodes.desc_content()
+        class_desc += class_content
+
+        # Add class description
+        if ts_class.doc_comment and ts_class.doc_comment.description:
+            desc_para = nodes.paragraph()
+            desc_para.append(nodes.Text(ts_class.doc_comment.description))
+            class_content.append(desc_para)
 
         # Store class name for later use with methods and properties
         self.current_class_name = class_name
 
-        # Add methods and properties
-        self._add_methods_section(class_node, ts_class)
-        self._add_properties_section(class_node, ts_class)
-
-        return [class_node]
-
-    def _add_class_header(
-        self,
-        class_node: nodes.section,
-        class_name: str,
-        ts_class: TSClass,
-        file_path: Path,
-    ) -> None:
-        """Add class header information."""
-        # Create class description
-        desc = addnodes.desc(
-            domain="ts",
-            objtype="class",
-            noindex=False,
-        )
-        desc["ids"] = [f"class-{class_name}"]
-        class_node += desc
-
-        # Create class signature
-        sig = addnodes.desc_signature("", "", first=True)
-        sig["class"] = "sig-object ts"
-        sig["ids"] = [f"class-{class_name}"]
-        desc += sig
-
-        # Add class keyword and name
-        sig += addnodes.desc_annotation("", "class ")
-        sig += addnodes.desc_name("", class_name)
-
-        # Add content container
-        content = addnodes.desc_content()
-        desc += content
-
-        # Add class documentation
-        doc_lines = self.format_doc_comment(ts_class.doc_comment)
-        if doc_lines:
-            content.extend(self.create_rst_content(doc_lines))
-
-        # Add source file information
-        source_info = nodes.paragraph("")
-        source_info += nodes.emphasis("", f"Source: {file_path.name}")
-        content += source_info
-
-    def _add_constructor_section(
-        self, class_node: nodes.section, ts_class: TSClass
-    ) -> None:
-        """Add constructor section if present."""
+        # Add constructor if present
         if ts_class.constructor:
-            constructor_section = self._format_method(
-                ts_class.constructor, "Constructor"
+            constructor_desc = self._format_method_common(
+                ts_class.constructor, class_name, "Constructor"
             )
-            if constructor_section:
-                class_node.append(constructor_section)
+            if constructor_desc:
+                class_content.append(constructor_desc)
 
-    def _add_methods_section(
-        self, class_node: nodes.section, ts_class: TSClass
-    ) -> None:
-        """Add methods section if present."""
-        if ts_class.methods:
-            methods_section = nodes.section(ids=["methods"])
-            methods_title = nodes.title(text="Methods")
-            methods_section.append(methods_title)
-
-            for method in ts_class.methods:
-                method_desc = self._format_method(method)
-                if method_desc:
-                    methods_section.append(method_desc)
-
-            class_node.append(methods_section)
-
-    def _add_properties_section(
-        self, class_node: nodes.section, ts_class: TSClass
-    ) -> None:
-        """Add properties section if present."""
+        # Add properties directly to class content (after constructor)
         if ts_class.properties:
-            properties_section = nodes.section(ids=["properties"])
-            properties_title = nodes.title(text="Properties")
-            properties_section.append(properties_title)
-
             for prop in ts_class.properties:
-                prop_desc = self._format_property(prop)
+                prop_desc = self._format_property_common(prop, class_name)
                 if prop_desc:
-                    properties_section.append(prop_desc)
+                    class_content.append(prop_desc)
 
-            class_node.append(properties_section)
+        # Add methods directly to class content (after properties)
+        if ts_class.methods:
+            for method in ts_class.methods:
+                method_desc = self._format_method_common(method, class_name)
+                if method_desc:
+                    class_content.append(method_desc)
+
+        return [class_desc]
 
     def _format_method(
         self, method: TSMethod, title_override: str | None = None
@@ -854,24 +802,6 @@ class TSAutoClassDirective(TSAutoDirective):
         """Format a method as RST."""
         parent_class = getattr(self, "current_class_name", None)
         return self._format_method_common(method, parent_class, title_override)
-
-    def _create_method_signature(self, method: TSMethod) -> str:
-        """Create method signature string."""
-        signature = method.name
-        if method.parameters:
-            param_strs = self._format_method_parameters(method.parameters)
-            signature += f"({', '.join(param_strs)})"
-        else:
-            signature += "()"
-
-        if method.return_type:
-            signature += f" {self.format_parameter_type(method.return_type, add_colon=True)}"
-
-        return signature
-
-    def _format_method_parameters(self, parameters: list[dict]) -> list[str]:
-        """Format method parameters."""
-        return [self.format_parameter_string(param) for param in parameters]
 
     def _format_property(self, prop: TSProperty) -> addnodes.desc | None:
         """Format a property as RST."""
@@ -898,7 +828,6 @@ class TSAutoInterfaceDirective(TSAutoDirective):
             return []
 
         ts_interface: TSInterface = result["object"]
-        file_path = result["file_path"]
 
         # Register the interface with the TypeScript domain using _register_object_with_domain
         self._register_object_with_domain(
@@ -923,105 +852,58 @@ class TSAutoInterfaceDirective(TSAutoDirective):
                         "property", qualified_name, self.env.docname
                     )
 
-        # Create the main interface directive
-        interface_node = nodes.section(ids=[f"interface-{interface_name}"])
+        # Create the main interface descriptor with proper docutils structure
+        interface_desc = addnodes.desc(domain="ts", objtype="interface")
+
+        # Create interface signature
+        interface_sig = addnodes.desc_signature("", "", first=True)
+        interface_sig["class"] = "sig-object ts"
+        interface_sig["ids"] = [f"interface-{interface_name}"]
+        interface_sig += addnodes.desc_annotation("", "interface ")
+        interface_sig += addnodes.desc_name("", interface_name)
+
+        # Add type parameters if present
+        if ts_interface.type_parameters:
+            interface_sig += nodes.Text(
+                f"<{', '.join(ts_interface.type_parameters)}>"
+            )
+
+        # Add extends clause if present
+        if ts_interface.extends:
+            interface_sig += nodes.Text(
+                f" extends {', '.join(ts_interface.extends)}"
+            )
+
+        interface_desc += interface_sig
+
+        # Create interface content container
+        interface_content = addnodes.desc_content()
+        interface_desc += interface_content
+
+        # Add interface description
+        if ts_interface.doc_comment and ts_interface.doc_comment.description:
+            desc_para = nodes.paragraph()
+            desc_para.append(nodes.Text(ts_interface.doc_comment.description))
+            interface_content.append(desc_para)
 
         # Store interface name for later use with methods and properties
         self.current_interface_name = interface_name
 
-        # Add interface information sections
-        self._add_interface_header(
-            interface_node, interface_name, ts_interface, file_path
-        )
-        self._add_interface_methods_section(interface_node, ts_interface)
-        self._add_interface_properties_section(interface_node, ts_interface)
-
-        return [interface_node]
-
-    def _add_interface_header(
-        self,
-        interface_node: nodes.section,
-        interface_name: str,
-        ts_interface: TSInterface,
-        file_path: Path,
-    ) -> None:
-        """Add interface header information."""
-        # Create interface description
-        desc = addnodes.desc(
-            domain="ts",
-            objtype="interface",
-            noindex=False,
-        )
-        desc["ids"] = [f"interface-{interface_name}"]
-        interface_node += desc
-
-        # Create interface signature
-        sig = addnodes.desc_signature("", "", first=True)
-        sig["class"] = "sig-object ts"
-        sig["ids"] = [f"interface-{interface_name}"]
-        desc += sig
-
-        # Add interface keyword and name
-        sig += addnodes.desc_annotation("", "interface ")
-        sig += addnodes.desc_name("", interface_name)
-
-        # Add type parameters if present
-        if ts_interface.type_parameters:
-            sig += nodes.Text(f"<{', '.join(ts_interface.type_parameters)}>")
-
-        # Add extends clause if present
-        if ts_interface.extends:
-            sig += nodes.Text(f" extends {', '.join(ts_interface.extends)}")
-
-        # Add content container
-        content = addnodes.desc_content()
-        desc += content
-
-        # Add interface documentation
-        doc_lines = self.format_doc_comment(ts_interface.doc_comment)
-        if doc_lines:
-            content.extend(self.create_rst_content(doc_lines))
-
-        # Add source file information
-        source_info = nodes.paragraph("")
-        source_info += nodes.emphasis("", f"Source: {file_path.name}")
-        content += source_info
-
-    def _add_interface_methods_section(
-        self,
-        interface_node: nodes.section,
-        ts_interface: TSInterface,
-    ) -> None:
-        """Add interface methods section."""
-        if ts_interface.methods:
-            methods_section = nodes.section(ids=["methods"])
-            methods_title = nodes.title(text="Methods")
-            methods_section.append(methods_title)
-
-            for method in ts_interface.methods:
-                method_desc = self._format_method(method)
-                if method_desc:
-                    methods_section.append(method_desc)
-
-            interface_node.append(methods_section)
-
-    def _add_interface_properties_section(
-        self,
-        interface_node: nodes.section,
-        ts_interface: TSInterface,
-    ) -> None:
-        """Add interface properties section."""
+        # Add properties directly to interface content (before methods)
         if ts_interface.properties:
-            props_section = nodes.section(ids=["properties"])
-            props_title = nodes.title(text="Properties")
-            props_section.append(props_title)
-
             for prop in ts_interface.properties:
-                prop_desc = self._format_property(prop)
+                prop_desc = self._format_property_common(prop, interface_name)
                 if prop_desc:
-                    props_section.append(prop_desc)
+                    interface_content.append(prop_desc)
 
-            interface_node.append(props_section)
+        # Add methods directly to interface content (after properties)
+        if ts_interface.methods:
+            for method in ts_interface.methods:
+                method_desc = self._format_method_common(method, interface_name)
+                if method_desc:
+                    interface_content.append(method_desc)
+
+        return [interface_desc]
 
     def _format_method(
         self, method: TSMethod, title_override: str | None = None
@@ -1065,7 +947,6 @@ class TSAutoDataDirective(TSAutoDirective):
             return []
 
         ts_variable: TSVariable = result["object"]
-        file_path = result["file_path"]
 
         # Register the variable with the TypeScript domain
         self._register_object_with_domain(
@@ -1107,7 +988,10 @@ class TSAutoDataDirective(TSAutoDirective):
             # (We handle returns separately with format_returns_section)
 
             if ts_variable.doc_comment.examples:
-                doc_lines.extend([".. rubric:: Examples", ""])
+                # Use rubric instead of section to exclude from TOC
+                doc_lines.extend(
+                    [".. rubric:: Examples", "   :class: ts-examples", ""]
+                )
                 # Use only one code block for all examples to prevent duplication
                 doc_lines.append(".. code-block:: typescript")
                 doc_lines.append("")
@@ -1148,15 +1032,15 @@ class TSAutoDataDirective(TSAutoDirective):
         if ts_variable.doc_comment and ts_variable.doc_comment.returns:
             self.format_returns_section(var_node, ts_variable.doc_comment)
 
-        # Add source file information
-        source_info = nodes.paragraph()
-        source_info.append(nodes.emphasis(text=f"Source: {file_path.name}"))
-        var_node.append(source_info)
+        # Source file information removed for cleaner TOC
 
         # Add value if available
         if ts_variable.value:
-            value_section = nodes.section(ids=[f"{variable_name}-value"])
-            value_section.append(nodes.rubric(text="Value"))
+            # Use rubric for value instead of section to exclude from TOC
+            value_container = nodes.container(classes=["ts-value-container"])
+            value_rubric = nodes.rubric(text="Value")
+            value_rubric["classes"] = ["ts-value"]
+            value_container.append(value_rubric)
 
             # Parse the value to determine how to display it
             value_data = TSValueParser.parse_value(ts_variable.value)
@@ -1179,14 +1063,14 @@ class TSAutoDataDirective(TSAutoDirective):
                 code_block = nodes.literal_block(text=full_code)
                 code_block["language"] = "typescript"
                 code_block["classes"] = ["highlight"]
-                value_section.append(code_block)
+                value_container.append(code_block)
 
                 # Add property descriptions after the code block if available
                 if ts_variable.doc_comment and ts_variable.doc_comment.params:
-                    props_section = nodes.section()
-                    props_section.append(
-                        nodes.rubric(text="Property Descriptions")
-                    )
+                    # Use rubric for property descriptions to exclude from TOC
+                    props_rubric = nodes.rubric(text="Property Descriptions")
+                    props_rubric["classes"] = ["ts-property-descriptions"]
+                    value_container.append(props_rubric)
 
                     # Create a definition list for properties
                     prop_list = nodes.definition_list()
@@ -1211,21 +1095,20 @@ class TSAutoDataDirective(TSAutoDirective):
                             prop_list += list_item
 
                     if len(prop_list.children) > 0:
-                        props_section.append(prop_list)
-                        value_section.append(props_section)
+                        value_container.append(prop_list)
             else:
                 # Use table for simpler values
                 value_table = self._create_value_table(ts_variable)
                 if value_table:
-                    value_section.append(value_table)
+                    value_container.append(value_table)
                 else:
                     # Fallback to simple display if table creation fails
                     value_para = nodes.paragraph()
                     value_code = nodes.literal(text=ts_variable.value)
                     value_para += value_code
-                    value_section.append(value_para)
+                    value_container.append(value_para)
 
-            var_node.append(value_section)
+            var_node.append(value_container)
 
         return [var_node]
 
@@ -1506,7 +1389,9 @@ class TSAutoDataDirective(TSAutoDirective):
             example_lines = self._format_examples(ts_function.doc_comment)
             if example_lines:
                 # Convert RST lines to docutils nodes
+                # Use rubric instead of section to exclude from TOC
                 examples_rubric = nodes.rubric(text="Examples")
+                examples_rubric["classes"] = ["ts-examples"]
                 content.append(examples_rubric)
 
                 # Create a literal block with all examples
@@ -1530,10 +1415,7 @@ class TSAutoDataDirective(TSAutoDirective):
         if doc_lines:
             func_node.extend(self.create_rst_content(doc_lines))
 
-        # Add source file information
-        source_info = nodes.paragraph("")
-        source_info += nodes.emphasis("", f"Source: {file_path.name}")
-        func_node.append(source_info)
+        # Source file information removed for cleaner TOC
 
         # Add parameters section if available
         # Parameters already added in the main function processing
@@ -1543,3 +1425,199 @@ class TSAutoDataDirective(TSAutoDirective):
         # This ensures consistent returns formatting across all TypeScript objects.
 
         return [func_node]
+
+
+class TSAutoEnumDirective(TSAutoDirective):
+    """Auto-documentation directive for TypeScript enums."""
+
+    def run(self) -> list[nodes.Node]:
+        """Run the directive."""
+        enum_name = self.arguments[0]
+
+        return self._process_enum(enum_name)
+
+    def _process_enum(self, enum_name: str) -> list[nodes.Node]:
+        """Process a TypeScript enum and generate documentation nodes."""
+        result = self.find_object_in_files(enum_name, "enum")
+        if not result:
+            logger.warning(
+                f"TypeScript enum '{enum_name}' not found in source files"
+            )
+            return []
+
+        ts_enum: TSEnum = result["object"]
+
+        # Register with domain
+        self._register_object_with_domain("enum", enum_name, self.env.docname)
+
+        # Create the main enum documentation
+        return self._create_enum_documentation(ts_enum)
+
+    def _create_enum_documentation(self, ts_enum: TSEnum) -> list[nodes.Node]:
+        """Create documentation nodes for an enum."""
+        content_nodes = []
+
+        # Add enum header
+        self._add_enum_header(ts_enum, content_nodes)
+
+        # Add enum members section
+        if ts_enum.members:
+            self._add_enum_members_section(ts_enum, content_nodes)
+
+        return content_nodes
+
+    def _add_enum_header(
+        self, ts_enum: TSEnum, content_nodes: list[nodes.Node]
+    ) -> None:
+        """Add the enum header section."""
+        # Create the main description node
+        desc_node = addnodes.desc(
+            domain="ts",
+            objtype="enum",
+            noindex=False,
+        )
+        desc_node["ids"] = [f"enum-{ts_enum.name}"]
+
+        # Create signature node
+        sig_node = addnodes.desc_signature("", "", first=True)
+        sig_node["class"] = "sig-object ts"
+        sig_node["ids"] = [f"enum-{ts_enum.name}"]
+        sig_node["fullname"] = ts_enum.name
+
+        # Add enum modifiers and keyword
+        signature_parts = []
+        if ts_enum.is_export:
+            signature_parts.append("export")
+            sig_node += addnodes.desc_annotation("export ", "export ")
+
+        if ts_enum.is_declare:
+            signature_parts.append("declare")
+            sig_node += addnodes.desc_annotation("declare ", "declare ")
+
+        if ts_enum.is_const:
+            signature_parts.append("const")
+            sig_node += addnodes.desc_annotation("const ", "const ")
+
+        sig_node += addnodes.desc_annotation("enum ", "enum ")
+        sig_node += addnodes.desc_name(ts_enum.name, ts_enum.name)
+
+        desc_node += sig_node
+
+        # Add description content
+        desc_content = addnodes.desc_content()
+        from docutils import nodes as docnodes
+
+        # Add enum description
+        if ts_enum.doc_comment and ts_enum.doc_comment.description:
+            para = docnodes.paragraph()
+            para += docnodes.Text(ts_enum.doc_comment.description)
+            desc_content += para
+
+        # Add members in a codeblock
+        if ts_enum.members:
+            members_para = docnodes.paragraph()
+            members_para += docnodes.strong(text="Members:")
+            desc_content += members_para
+
+            # Create a codeblock with the members
+            member_lines = []
+            for i, member in enumerate(ts_enum.members):
+                # Add JSDoc comment if present
+                if member.doc_comment and member.doc_comment.description:
+                    comment_text = member.doc_comment.description.strip()
+                    member_lines.append(f"/** {comment_text} */")
+
+                # Add member signature with comma
+                member_sig = self._create_member_signature(member)
+                # Add comma except for the last member
+                if i < len(ts_enum.members) - 1:
+                    member_sig += ","
+                member_lines.append(member_sig)
+
+            codeblock = docnodes.literal_block()
+            codeblock["language"] = "typescript"
+            codeblock += docnodes.Text("\n".join(member_lines))
+            desc_content += codeblock
+
+        desc_node += desc_content
+        content_nodes.append(desc_node)
+
+    def _create_enum_signature(self, ts_enum: TSEnum) -> str:
+        """Create the enum signature string."""
+        signature_parts = []
+
+        if ts_enum.is_export:
+            signature_parts.append("export")
+
+        if ts_enum.is_declare:
+            signature_parts.append("declare")
+
+        if ts_enum.is_const:
+            signature_parts.append("const")
+
+        signature_parts.append("enum")
+        signature_parts.append(ts_enum.name)
+
+        return " ".join(signature_parts)
+
+    def _add_enum_members_section(
+        self, ts_enum: TSEnum, content_nodes: list[nodes.Node]
+    ) -> None:
+        """Add enum members section."""
+        # Members are now added inline in the main description
+
+    def _format_enum_member(self, member: TSEnumMember) -> list[nodes.Node]:
+        """Format an enum member."""
+        member_nodes = []
+
+        # Create member signature
+        member_signature = self._create_member_signature(member)
+
+        # Create signature node
+        sig_node = addnodes.desc_signature()
+        sig_node["fullname"] = member.name
+        sig_node += addnodes.desc_name(text=member_signature)
+
+        # Create the main description node
+        desc_node = addnodes.desc()
+        desc_node["objtype"] = "enum_member"
+        desc_node["noindex"] = True
+        desc_node += sig_node
+
+        # Add description content
+        desc_content = addnodes.desc_content()
+        if member.doc_comment:
+            desc_text = self.format_doc_comment(member.doc_comment)
+            if desc_text:
+                # Filter out complex directives for member comments too
+                filtered_text = []
+                for line in desc_text:
+                    if not line.strip().startswith(".. "):
+                        filtered_text.append(line)
+
+                if filtered_text:
+                    try:
+                        rst_content = self.create_rst_content(filtered_text)
+                        desc_content.extend(rst_content)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse RST content: {e}")
+                        # Fallback to simple text
+                        from docutils import nodes as docnodes
+
+                        para = docnodes.paragraph()
+                        para += docnodes.Text(member.doc_comment.description)
+                        desc_content += para
+
+        desc_node += desc_content
+        member_nodes.append(desc_node)
+
+        return member_nodes
+
+    def _create_member_signature(self, member: TSEnumMember) -> str:
+        """Create the member signature string."""
+        signature = member.name
+
+        if member.value is not None:
+            signature += f" = {member.value}"
+
+        return signature

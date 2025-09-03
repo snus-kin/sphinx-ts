@@ -67,7 +67,7 @@ test:
 
 test-coverage:
 	@echo "Running tests with coverage..."
-	pytest --cov=ts_sphinx --cov-report=term-missing --cov-report=html
+	pytest --cov=sphinx_ts --cov-report=term-missing --cov-report=html
 
 # Code quality targets
 lint:
@@ -86,7 +86,7 @@ format-check:
 
 type-check:
 	@echo "Running type checking..."
-	mypy src/ts_sphinx
+	mypy src/sphinx_ts
 
 # Documentation targets
 docs:
@@ -143,25 +143,25 @@ run-example:
 
 test-example:
 	@echo "Testing with example TypeScript files..."
-	python -c "from ts_sphinx.parser import TSParser; p = TSParser(); print('Parser initialized successfully')"
+	python -c "from sphinx_ts.parser import TSParser; p = TSParser(); print('Parser initialized successfully')"
 
 # Debug and development helpers
 debug-parser:
 	@echo "Testing TypeScript parser with example file..."
-	python -c "from ts_sphinx.parser import TSParser; import pprint; p = TSParser(); result = p.parse_file('examples/calculator.ts'); pprint.pprint(result)"
+	python -c "from sphinx_ts.parser import TSParser; import pprint; p = TSParser(); result = p.parse_file('examples/calculator.ts'); pprint.pprint(result)"
 
 debug-extension:
 	@echo "Testing Sphinx extension loading..."
-	python -c "from ts_sphinx import setup; print('Extension loaded successfully')"
+	python -c "from sphinx_ts import setup; print('Extension loaded successfully')"
 
 # Version management
 version:
 	@echo "Current version:"
-	@python -c "from ts_sphinx import __version__; print(__version__)"
+	@python -c "from sphinx_ts import __version__; print(__version__)"
 
 bump-version:
 	@echo "Please update version manually in:"
-	@echo "  - src/ts_sphinx/__init__.py"
+	@echo "  - src/sphinx_ts/__init__.py"
 	@echo "  - pyproject.toml"
 	@echo "  - setup.py"
 

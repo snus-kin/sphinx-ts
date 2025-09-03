@@ -5,10 +5,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sphinx_ts.directives import TSAutoDirective
+from sphinx_ts.directives import TSAutoDirective, TSAutoEnumDirective
 from sphinx_ts.parser import (
     TSClass,
     TSDocComment,
+    TSEnum,
+    TSEnumMember,
     TSInterface,
     TSMethod,
     TSParser,
@@ -433,6 +435,72 @@ class TestUtilityFunctions:
             result = directive.create_rst_content(test_input)
             # Should not raise exceptions and should return list
             assert isinstance(result, list)
+
+
+class TestTSAutoEnumDirective:
+    """Test TSAutoEnumDirective functionality."""
+
+    def test_create_enum_signature_basic(self) -> None:
+        """Test creating basic enum signature."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        # Test basic exported enum
+        enum_obj = TSEnum("MyEnum")
+        enum_obj.is_export = True
+
+        signature = directive._create_enum_signature(enum_obj)
+        assert signature == "export enum MyEnum"
+
+    def test_create_enum_signature_const(self) -> None:
+        """Test creating const enum signature."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        enum_obj = TSEnum("Direction")
+        enum_obj.is_export = True
+        enum_obj.is_const = True
+
+        signature = directive._create_enum_signature(enum_obj)
+        assert signature == "export const enum Direction"
+
+    def test_create_enum_signature_declare(self) -> None:
+        """Test creating declare enum signature."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        enum_obj = TSEnum("ExternalEnum")
+        enum_obj.is_declare = True
+
+        signature = directive._create_enum_signature(enum_obj)
+        assert signature == "declare enum ExternalEnum"
+
+    def test_create_member_signature_with_value(self) -> None:
+        """Test creating enum member signature with value."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        member = TSEnumMember("STATUS")
+        member.value = '"active"'
+
+        signature = directive._create_member_signature(member)
+        assert signature == 'STATUS = "active"'
+
+    def test_create_member_signature_without_value(self) -> None:
+        """Test creating enum member signature without value."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        member = TSEnumMember("FIRST")
+
+        signature = directive._create_member_signature(member)
+        assert signature == "FIRST"
+
+    def test_create_member_signature_computed(self) -> None:
+        """Test creating enum member signature with computed value."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        member = TSEnumMember("READ")
+        member.value = "1 << 0"
+        member.computed_value = True
+
+        signature = directive._create_member_signature(member)
+        assert signature == "READ = 1 << 0"
 
 
 if __name__ == "__main__":

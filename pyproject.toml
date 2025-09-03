@@ -19,7 +19,7 @@ requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
 
 [project.entry-points."sphinx.html_themes"]
-ts_sphinx = "ts_sphinx"
+sphinx_ts = "sphinx_ts"
 
 [dependency-groups]
 dev = [

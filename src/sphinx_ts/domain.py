@@ -5,9 +5,11 @@ Provides a Sphinx domain for TypeScript with roles and object types.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from docutils.nodes import Element as DocElement
+from docutils.nodes import Node, system_message
 from docutils.parsers.rst import Directive, directives
 from sphinx import addnodes
 from sphinx.directives import ObjectDescription
@@ -344,6 +346,36 @@ class TSParamRole(SphinxRole):
         return [node], []
 
 
+class TSEnum(TypeScriptObject):
+    """Directive for TypeScript enums."""
+
+    doc_field_types: list[Field] = [
+        Field("example", label=_("Example"), names=("example",)),
+        Field("since", label=_("Since"), names=("since",)),
+        Field("deprecated", label=_("Deprecated"), names=("deprecated",)),
+    ]
+
+    def get_signature_prefix(self, _sig: str) -> str:
+        """Return the signature prefix."""
+        return "enum "
+
+    def handle_signature(self, sig: str, signode: Element) -> str:
+        """Parse the signature and return the enum name."""
+        signode.append(addnodes.desc_annotation("enum ", "enum "))
+
+        # Handle modifiers (const, declare, export)
+        parts = sig.split()
+        enum_name = parts[-1]  # Last part is the enum name
+
+        # Add modifiers
+        for part in parts[:-1]:
+            if part in ("const", "declare", "export"):
+                signode.append(addnodes.desc_annotation(f"{part} ", f"{part} "))
+
+        signode.append(addnodes.desc_name(enum_name, enum_name))
+        return enum_name
+
+
 class TypeScriptDomain(Domain):
     """TypeScript domain."""
 
@@ -353,6 +385,7 @@ class TypeScriptDomain(Domain):
     object_types: dict[str, ObjType] = {
         "class": ObjType("class", "class", "obj"),
         "interface": ObjType("interface", "interface", "obj"),
+        "enum": ObjType("enum", "enum", "obj"),
         "method": ObjType("method", "meth", "method", "obj"),
         "property": ObjType("property", "prop", "property", "obj"),
         "function": ObjType("function", "func", "function", "obj"),
@@ -362,6 +395,7 @@ class TypeScriptDomain(Domain):
     directives: dict[str, type[Directive]] = {
         "class": TSClass,
         "interface": TSInterface,
+        "enum": TSEnum,
         "method": TSMethod,
         "property": TSProperty,
         "function": TSFunction,
@@ -371,6 +405,7 @@ class TypeScriptDomain(Domain):
     roles: dict[str, RoleFunction | TSXRefRole | SphinxRole] = {
         "class": TSXRefRole(),
         "interface": TSXRefRole(),
+        "enum": TSXRefRole(),
         "meth": TSXRefRole(),
         "prop": TSXRefRole(),
         "func": TSXRefRole(),
