@@ -4,12 +4,14 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
+from sphinx.application import Sphinx
 
 import sphinx_ts
 from sphinx_ts import setup
 from sphinx_ts.directives import (
     TSAutoClassDirective,
     TSAutoDataDirective,
+    TSAutoEnumDirective,
     TSAutoInterfaceDirective,
 )
 from sphinx_ts.domain import TypeScriptDomain
@@ -24,7 +26,7 @@ from sphinx_ts.parser import (
 )
 
 # Test constants
-EXPECTED_DIRECTIVES_COUNT = 3
+EXPECTED_DIRECTIVES_COUNT = 4
 EXPECTED_CONFIG_VALUES_COUNT = 4
 
 
@@ -99,6 +101,7 @@ class TestExtensionSetup:
         expected_directives = [
             ("ts:autoclass", TSAutoClassDirective),
             ("ts:autointerface", TSAutoInterfaceDirective),
+            ("ts:autoenum", TSAutoEnumDirective),
             ("ts:autodata", TSAutoDataDirective),
         ]
 
@@ -142,6 +145,7 @@ class TestExtensionSetup:
             directive_names = [call[0][0] for call in directive_calls]
             assert "ts:autoclass" in directive_names
             assert "ts:autointerface" in directive_names
+            assert "ts:autoenum" in directive_names
             assert "ts:autodata" in directive_names
 
             # Verify config values were added

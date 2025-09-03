@@ -15,9 +15,10 @@ from sphinx import addnodes
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
 from sphinx.locale import _
-from sphinx.roles import SphinxRole, XRefRole
+from sphinx.roles import XRefRole
 from sphinx.util import logging
 from sphinx.util.docfields import Field, TypedField
+from sphinx.util.docutils import SphinxRole
 from sphinx.util.nodes import make_refnode
 
 if TYPE_CHECKING:
@@ -190,7 +191,8 @@ class TSMethod(TypeScriptObject):
             if isinstance(param_list, DocElement):
                 param_list.append(param_node)
             else:
-                signode[-1] += param_node
+                # Use proper append method instead of +=
+                param_list.append(param_node)
 
         return method_name
 
@@ -270,7 +272,8 @@ class TSFunction(TypeScriptObject):
             if isinstance(param_list, DocElement):
                 param_list.append(param_node)
             else:
-                signode[-1] += param_node
+                # Use proper append method instead of +=
+                param_list.append(param_node)
 
         return func_name
 

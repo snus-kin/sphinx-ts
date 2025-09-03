@@ -1,7 +1,7 @@
 """Tests for TypeScript auto-documentation directives."""
 
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 
@@ -50,7 +50,7 @@ class TestTSAutoDirectiveCore:
         result = directive.format_doc_comment(doc_comment)
         assert len(result) > 0
         assert "This is a test function." in result[0]
-        assert any("Parameters:" in line for line in result)
+        assert any(".. rubric:: Parameters" in line for line in result)
         assert any("name" in line for line in result)
 
     def test_format_type_annotation(self) -> None:
@@ -96,13 +96,24 @@ class TestTSAutoDirectiveCore:
             "functions": [],
         }
 
-        result = directive.find_object_in_files("TestClass", "class")
+        # Mock the env property and its methods
+        with patch.object(
+            type(directive), "env", new_callable=PropertyMock
+        ) as mock_env_prop:
+            mock_env = Mock()
+            mock_env.docname = "test_doc"
+            mock_domain = Mock()
+            mock_domain.data = {"objects": {}}
+            mock_env.get_domain.return_value = mock_domain
+            mock_env_prop.return_value = mock_env
 
-        assert result is not None
-        assert result["object"] == mock_class
-        assert result["file_path"] == test_file
-        directive.get_source_files.assert_called_once()
-        mock_parser_instance.parse_file.assert_called_once_with(test_file)
+            result = directive.find_object_in_files("TestClass", "class")
+
+            assert result is not None
+            assert result["object"] == mock_class
+            assert result["file_path"] == test_file
+            directive.get_source_files.assert_called_once()
+            mock_parser_instance.parse_file.assert_called_once_with(test_file)
 
     def test_find_object_in_files_not_found(self) -> None:
         """Test finding objects when they don't exist."""
@@ -112,8 +123,20 @@ class TestTSAutoDirectiveCore:
         directive.parser = Mock()
         directive.get_source_files = Mock(return_value=[])
 
-        result = directive.find_object_in_files("NonexistentClass", "class")
-        assert result is None
+        # Mock the env property
+        with patch.object(
+            type(directive), "env", new_callable=PropertyMock
+        ) as mock_env_prop:
+            mock_env = Mock()
+            mock_env.docname = "test_doc"
+            mock_domain = Mock()
+            mock_domain.data = {"objects": {}}
+            mock_env.get_domain.return_value = mock_domain
+            mock_env_prop.return_value = mock_env
+
+            result = directive.find_object_in_files("NonExistent", "class")
+
+            assert result is None
 
 
 class TestTSDocCommentFormatting:
@@ -144,11 +167,11 @@ class TestTSDocCommentFormatting:
         # Check that all components are present
         content = "\n".join(result)
         assert "comprehensive test function" in content.lower()
-        assert "Parameters:" in content
+        assert ".. rubric:: Parameters" in content
         assert "first parameter" in content
         assert "second parameter" in content
-        assert "Returns:" in content or "result value" in content
-        assert "Example:" in content
+        assert ".. rubric:: Returns" in content or "result value" in content
+        assert ".. rubric:: Examples" in content
         assert "Since:" in content or "1.0.0" in content
         assert "deprecated" in content.lower()
 
@@ -176,7 +199,7 @@ class TestTSDocCommentFormatting:
         result = directive.format_doc_comment(doc_comment)
         content = "\n".join(result)
 
-        assert "Parameters:" in content
+        assert ".. rubric:: Parameters" in content
         assert "First param" in content
         assert "Second param" in content
 

@@ -67,6 +67,7 @@ class TestTypeScriptDomain:
         assert self.domain.data["objects"]["class"]["MyClass"] == (
             "test_doc",
             "",
+            False,
         )
 
     def test_clear_doc(self) -> None:
