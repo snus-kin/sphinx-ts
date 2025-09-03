@@ -247,6 +247,5 @@ class TestTSMemberClasses:
         assert ts_method.parameters == []
         assert not ts_method.is_async
 
-
 if __name__ == "__main__":
     pytest.main([__file__])

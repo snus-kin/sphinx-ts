@@ -48,9 +48,6 @@ class TSAutoDirective(SphinxDirective):
         "imported-members": directives.flag,
         "ignore-module-all": directives.flag,
         "no-index": directives.flag,
-        "synopsis": directives.unchanged,
-        "platform": directives.unchanged,
-        "deprecated": directives.flag,
     }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
@@ -281,14 +278,12 @@ class TSAutoDirective(SphinxDirective):
         if not ((doc_comment and doc_comment.returns) or return_type):
             return
 
-        returns_rubric = nodes.rubric("Returns")
+        returns_rubric = nodes.rubric(text="Returns")
 
         content.append(returns_rubric)
 
         # Create paragraph for the return content
         returns_para = nodes.paragraph()
-
-        returns_para.append(nodes.Text("Returns: "))
 
         # Add return type if available
         if return_type:
@@ -469,6 +464,242 @@ class TSAutoDirective(SphinxDirective):
             # Fallback to simple paragraph
             return [nodes.paragraph(text=content)]
 
+    def _format_method_common(
+        self,
+        method: TSMethod,
+        parent_name: str | None = None,
+        title_override: str | None = None,
+    ) -> addnodes.desc | None:
+        """Format a method as RST.
+
+        This shared method can be used by both class and interface directives.
+
+        Args:
+            method: The method to format
+            parent_name: Optional parent class/interface name
+            title_override: Optional title override
+
+        Returns:
+            A formatted method description (not a section to avoid TOC entries)
+
+        """
+        if not method.name:
+            return None
+
+        method_id = (
+            f"{parent_name}.{method.name}" if parent_name else method.name
+        )
+
+        # Create method description directly (no section wrapper)
+        desc = addnodes.desc(
+            domain="ts",
+            objtype="method",
+            noindex=True,  # Don't index this in the global index
+        )
+        desc["ids"] = [f"ts-method-{method_id}"]
+
+        # Create signature for method
+        sig = addnodes.desc_signature("", "", first=True)
+        sig["class"] = "sig-object ts"
+        sig["ids"] = [f"method-{method_id}"]
+        desc += sig
+
+        # Add method name
+        name = title_override or method.name
+        sig += addnodes.desc_name("", name)
+
+        # Add method parameters
+        paramlist = addnodes.desc_parameterlist()
+        sig += paramlist
+
+        # Add each parameter in a more compact format
+        if method.parameters:
+            for param in method.parameters:
+                parameter = addnodes.desc_parameter("", "")
+                paramlist += parameter
+
+                # Use the shared parameter formatting helper
+                self.format_parameter_nodes(parameter, param)
+
+        # Add return type on the same line as the method signature
+        if method.return_type:
+            sig += nodes.Text(": ")
+            formatted_type = self.format_parameter_type(method.return_type)
+            sig += nodes.emphasis("", formatted_type)
+
+        # Add content container
+        content = addnodes.desc_content()
+        desc += content
+
+        # Add method documentation first (description only)
+        self._add_method_description(content, method)
+
+        # Then add parameter information
+        self._add_parameter_list(content, method)
+
+        # Then add returns information
+        self._add_method_returns(content, method)
+
+        # Add examples documentation
+        if method.doc_comment and method.doc_comment.examples:
+            example_lines = self._format_examples(method.doc_comment)
+            if example_lines:
+                # Convert RST lines to docutils nodes
+                examples_rubric = nodes.rubric(text="Examples")
+                content.append(examples_rubric)
+
+                # Create a literal block with all examples
+                example_text = "\n".join(
+                    line.removeprefix("   ") for line in example_lines[3:-1]
+                )
+                example_node = nodes.literal_block(example_text, example_text)
+                example_node["language"] = "typescript"
+                example_node["classes"] = ["highlight"]
+                content.append(example_node)
+
+        return desc
+
+    def _add_method_description(
+        self, content: addnodes.desc_content, method: TSMethod
+    ) -> None:
+        """Add method description only (no parameters, returns, or examples)."""
+        if method.doc_comment and method.doc_comment.description:
+            desc_para = nodes.paragraph()
+            desc_para.append(nodes.Text(method.doc_comment.description))
+            content.append(desc_para)
+
+    def _add_method_returns(
+        self, content: addnodes.desc_content, method: TSMethod
+    ) -> None:
+        """Add method returns information."""
+        if method.return_type or (
+            method.doc_comment and method.doc_comment.returns
+        ):
+            # Add returns directly to the content
+            self.format_returns_section(
+                content, method.doc_comment, method.return_type
+            )
+
+    def _add_parameter_list(
+        self, content: addnodes.desc_content, method: TSMethod
+    ) -> None:
+        """Add parameter list to method content."""
+        if not method.parameters:
+            return
+
+        # Extract documented parameters from doc_comment if it exists
+        documented_params = {}
+        if method.doc_comment and method.doc_comment.params:
+            documented_params = method.doc_comment.params
+
+        # Add a rubric for parameters (without colon, Sphinx adds formatting)
+        param_rubric = nodes.rubric(text="Parameters")
+        content.append(param_rubric)
+
+        # Create field list for parameters
+        field_list = nodes.field_list()
+        content.append(field_list)
+
+        # Add parameters as field items
+        for param in method.parameters:
+            # Create field item
+            field = nodes.field()
+            field_list.append(field)
+
+            # Create field name with parameter name and optional marker
+            field_name = nodes.field_name("")
+            self.format_optional_parameter(
+                field_name,
+                param["name"],
+                param.get("optional", False),
+                in_signature=False,
+            )
+
+            field.append(field_name)
+
+            # Create field body with type and description
+            field_body = nodes.field_body()
+            field.append(field_body)
+
+            # Create paragraph for type and description in a single line
+            para = nodes.paragraph()
+
+            # Add type information inline
+            if param.get("type"):
+                formatted_type = self.format_parameter_type(
+                    param.get("type", "")
+                )
+                para.append(nodes.emphasis("", formatted_type))
+                if param.get("default"):
+                    para.append(nodes.Text(f" = {param.get('default')}"))
+
+                # Add a space between type and description
+                if param["name"] in documented_params:
+                    para.append(nodes.Text(" - "))
+
+            # Add description in the same paragraph
+            if param["name"] in documented_params:
+                para.append(nodes.Text(documented_params[param["name"]]))
+
+            field_body.append(para)
+
+    def _format_property_common(
+        self, prop: TSProperty, parent_name: str | None = None
+    ) -> addnodes.desc | None:
+        """Format a property as RST.
+
+        This shared method can be used by both class and interface directives.
+
+        Args:
+            prop: The property to format
+            parent_name: Optional parent class/interface name
+
+        Returns:
+            A formatted property description (not a section to avoid TOC entries)
+
+        """
+        prop_id = f"{parent_name}.{prop.name}" if parent_name else prop.name
+
+        # Create property description directly (no section wrapper)
+        desc = addnodes.desc(
+            domain="ts",
+            objtype="attribute",
+            noindex=True,  # Don't index this in the global index
+        )
+        desc["ids"] = [f"ts-property-{prop_id}"]
+
+        # Create signature
+        sig = addnodes.desc_signature("", "", first=True)
+        sig["class"] = "sig-object ts"
+        sig["ids"] = [f"property-{prop_id}"]
+        desc += sig
+
+        # Add property name
+        sig += addnodes.desc_name("", prop.name)
+
+        # Add optional marker for properties if needed
+        if hasattr(prop, "is_optional") and prop.is_optional:
+            sig += nodes.Text("?")
+
+        # Add property type
+        if prop.type_annotation:
+            sig += nodes.Text(": ")
+            formatted_type = self.format_parameter_type(prop.type_annotation)
+            sig += addnodes.desc_type("", formatted_type)
+
+        # Add content container
+        content = addnodes.desc_content()
+        desc += content
+
+        # Add property documentation
+        if prop.doc_comment:
+            if prop.doc_comment.description:
+                para = nodes.paragraph()
+                para += nodes.Text(prop.doc_comment.description)
+                content += para
+
+        return desc
+
 
 class TSAutoClassDirective(TSAutoDirective):
     """Auto-documentation directive for TypeScript classes."""
@@ -476,6 +707,7 @@ class TSAutoClassDirective(TSAutoDirective):
     def run(self) -> list[nodes.Node]:
         """Run the directive."""
         class_name = self.arguments[0]
+
         return self._process_class(class_name)
 
     def _process_class(self, class_name: str) -> list[nodes.Node]:
@@ -552,6 +784,7 @@ class TSAutoClassDirective(TSAutoDirective):
         # Create class signature
         sig = addnodes.desc_signature("", "", first=True)
         sig["class"] = "sig-object ts"
+        sig["ids"] = [f"class-{class_name}"]
         desc += sig
 
         # Add class keyword and name
@@ -593,9 +826,9 @@ class TSAutoClassDirective(TSAutoDirective):
             methods_section.append(methods_title)
 
             for method in ts_class.methods:
-                method_section = self._format_method(method)
-                if method_section:
-                    methods_section.append(method_section)
+                method_desc = self._format_method(method)
+                if method_desc:
+                    methods_section.append(method_desc)
 
             class_node.append(methods_section)
 
@@ -609,111 +842,15 @@ class TSAutoClassDirective(TSAutoDirective):
             properties_section.append(properties_title)
 
             for prop in ts_class.properties:
-                prop_section = self._format_property(prop)
-                if prop_section:
-                    properties_section.append(prop_section)
+                prop_desc = self._format_property(prop)
+                if prop_desc:
+                    properties_section.append(prop_desc)
 
             class_node.append(properties_section)
 
-    # Shared methods for formatting that can be used by any directive
-    def _format_method_common(
-        self,
-        method: TSMethod,
-        parent_name: str | None = None,
-        title_override: str | None = None,
-    ) -> nodes.section | None:
-        """Format a method as RST.
-
-        This shared method can be used by both class and interface directives.
-
-        Args:
-            method: The method to format
-            parent_name: Optional parent class/interface name
-            title_override: Optional title override
-
-        Returns:
-            A formatted method section
-
-        """
-        if not method.name:
-            return None
-
-        method_id = (
-            f"{parent_name}.{method.name}" if parent_name else method.name
-        )
-
-        method_section = nodes.section()
-        method_section["ids"] = [f"method-{method_id}"]
-
-        # Create method description
-        desc = addnodes.desc(
-            domain="ts",
-            objtype="method",
-            noindex=True,  # Don't index this in the global index
-        )
-        desc["ids"] = [f"ts-method-{method_id}"]
-        method_section += desc
-
-        # Create signature for method
-        sig = addnodes.desc_signature("", "", first=True)
-        sig["class"] = "sig-object ts"
-        desc += sig
-
-        # Add method name
-        name = title_override or method.name
-        sig += addnodes.desc_name("", name)
-
-        # Add method parameters
-        paramlist = addnodes.desc_parameterlist()
-        sig += paramlist
-
-        # Add each parameter in a more compact format
-        if method.parameters:
-            for param in method.parameters:
-                parameter = addnodes.desc_parameter("", "")
-                paramlist += parameter
-
-                # Use the shared parameter formatting helper
-                self.format_parameter_nodes(parameter, param)
-
-        # Add return type on the same line as the method signature
-        if method.return_type:
-            sig += nodes.Text(": ")
-            formatted_type = self.format_parameter_type(method.return_type)
-            sig += nodes.emphasis("", formatted_type)
-
-        # Add content container
-        content = addnodes.desc_content()
-        desc += content
-
-        # Add parameter information first
-        self._add_parameter_list(content, method)
-
-        # Then add method documentation
-        self._add_method_documentation(content, method)
-
-        # Add examples documentation
-        if method.doc_comment and method.doc_comment.examples:
-            example_lines = self._format_examples(method.doc_comment)
-            if example_lines:
-                # Convert RST lines to docutils nodes
-                examples_rubric = nodes.rubric("Examples")
-                content.append(examples_rubric)
-
-                # Create a literal block with all examples
-                example_text = "\n".join(
-                    line.removeprefix("   ") for line in example_lines[3:-1]
-                )
-                example_node = nodes.literal_block(example_text, example_text)
-                example_node["language"] = "typescript"
-                example_node["classes"] = ["highlight"]
-                content.append(example_node)
-
-        return method_section
-
     def _format_method(
         self, method: TSMethod, title_override: str | None = None
-    ) -> nodes.section | None:
+    ) -> addnodes.desc | None:
         """Format a method as RST."""
         parent_class = getattr(self, "current_class_name", None)
         return self._format_method_common(method, parent_class, title_override)
@@ -736,166 +873,7 @@ class TSAutoClassDirective(TSAutoDirective):
         """Format method parameters."""
         return [self.format_parameter_string(param) for param in parameters]
 
-    def _add_method_documentation(
-        self, method_section: nodes.Element, method: TSMethod
-    ) -> None:
-        """Add method documentation to section."""
-        # Skip parameters in doc comment if we have method parameters
-        # We'll handle them in _add_parameter_list instead
-        skip_params = bool(method.parameters)
-
-        # Add method documentation
-        # Skip both parameters and returns in the doc comment
-        # since we'll handle them separately
-        should_skip_returns = bool(
-            method.return_type is not None
-            or (method.doc_comment and method.doc_comment.returns)
-        )
-        doc_lines = self.format_doc_comment(
-            method.doc_comment,
-            skip_params=skip_params,
-            skip_returns=should_skip_returns,
-            skip_examples=True,
-        )
-        if doc_lines:
-            for node in self.create_rst_content(doc_lines):
-                method_section += node
-
-        # Add return information using shared method
-        if method.return_type or (
-            method.doc_comment and method.doc_comment.returns
-        ):
-            # Add returns directly to the method_section
-            self.format_returns_section(
-                method_section, method.doc_comment, method.return_type
-            )
-
-    def _add_parameter_list(
-        self, content: addnodes.desc_content, method: TSMethod
-    ) -> None:
-        """Add parameter list to method content."""
-        if not method.parameters:
-            return
-
-        # Extract documented parameters from doc_comment if it exists
-        documented_params = {}
-        if method.doc_comment and method.doc_comment.params:
-            documented_params = method.doc_comment.params
-
-        # Add a rubric for parameters (without colon, Sphinx adds formatting)
-        param_rubric = nodes.rubric("Parameters")
-        content.append(param_rubric)
-
-        # Create field list for parameters
-        field_list = nodes.field_list()
-        content.append(field_list)
-
-        # Add parameters as field items
-        for param in method.parameters:
-            # Create field item
-            field = nodes.field()
-            field_list.append(field)
-
-            # Create field name with parameter name and optional marker
-            field_name = nodes.field_name("")
-            self.format_optional_parameter(
-                field_name,
-                param["name"],
-                param.get("optional", False),
-                in_signature=False,
-            )
-
-            field.append(field_name)
-
-            # Create field body with type and description
-            field_body = nodes.field_body()
-            field.append(field_body)
-
-            # Create paragraph for type and description in a single line
-            para = nodes.paragraph()
-
-            # Add type information inline
-            if param.get("type"):
-                formatted_type = self.format_parameter_type(
-                    param.get("type", "")
-                )
-                para.append(nodes.emphasis("", formatted_type))
-                if param.get("default"):
-                    para.append(nodes.Text(f" = {param.get('default')}"))
-
-                # Add a space between type and description
-                if param["name"] in documented_params:
-                    para.append(nodes.Text(" - "))
-
-            # Add description in the same paragraph
-            if param["name"] in documented_params:
-                para.append(nodes.Text(documented_params[param["name"]]))
-
-            field_body.append(para)
-
-        # Parameters are now handled using field lists
-
-    def _format_property_common(
-        self, prop: TSProperty, parent_name: str | None = None
-    ) -> nodes.section | None:
-        """Format a property as RST.
-
-        This shared method can be used by both class and interface directives.
-
-        Args:
-            prop: The property to format
-            parent_name: Optional parent class/interface name
-
-        Returns:
-            A formatted property section
-
-        """
-        prop_id = f"{parent_name}.{prop.name}" if parent_name else prop.name
-
-        # Create property section
-        prop_section = nodes.section(ids=[f"property-{prop_id}"])
-
-        # Create property description
-        desc = addnodes.desc(
-            domain="ts",
-            objtype="attribute",
-            noindex=False,
-        )
-        desc["ids"] = [f"ts-property-{prop_id}"]
-        prop_section += desc
-
-        # Create signature
-        sig = addnodes.desc_signature("", "", first=True)
-        sig["class"] = "sig-object ts"
-        desc += sig
-
-        # Add property name
-        sig += addnodes.desc_name("", prop.name)
-
-        # Add optional marker for properties if needed
-        if hasattr(prop, "is_optional") and prop.is_optional:
-            sig += nodes.Text("?")
-
-        # Add property type
-        if prop.type_annotation:
-            sig += nodes.Text(": ")
-            formatted_type = self.format_parameter_type(prop.type_annotation)
-            sig += addnodes.desc_type("", formatted_type)
-
-        # Add content container
-        content = addnodes.desc_content()
-        desc += content
-
-        # Add property documentation
-        if prop.doc_comment:
-            if prop.doc_comment.description:
-                para = nodes.paragraph()
-                para += nodes.Text(prop.doc_comment.description)
-                content += para
-
-        return prop_section
-
-    def _format_property(self, prop: TSProperty) -> nodes.section | None:
+    def _format_property(self, prop: TSProperty) -> addnodes.desc | None:
         """Format a property as RST."""
         parent_class = getattr(self, "current_class_name", None)
         return self._format_property_common(prop, parent_class)
@@ -955,12 +933,8 @@ class TSAutoInterfaceDirective(TSAutoDirective):
         self._add_interface_header(
             interface_node, interface_name, ts_interface, file_path
         )
-        self._add_interface_methods_section(
-            interface_node, interface_name, ts_interface
-        )
-        self._add_interface_properties_section(
-            interface_node, interface_name, ts_interface
-        )
+        self._add_interface_methods_section(interface_node, ts_interface)
+        self._add_interface_properties_section(interface_node, ts_interface)
 
         return [interface_node]
 
@@ -972,203 +946,96 @@ class TSAutoInterfaceDirective(TSAutoDirective):
         file_path: Path,
     ) -> None:
         """Add interface header information."""
-        # Add interface title
-        title = nodes.title(text=f"interface {interface_name}")
-        interface_node.append(title)
+        # Create interface description
+        desc = addnodes.desc(
+            domain="ts",
+            objtype="interface",
+            noindex=False,
+        )
+        desc["ids"] = [f"interface-{interface_name}"]
+        interface_node += desc
+
+        # Create interface signature
+        sig = addnodes.desc_signature("", "", first=True)
+        sig["class"] = "sig-object ts"
+        sig["ids"] = [f"interface-{interface_name}"]
+        desc += sig
+
+        # Add interface keyword and name
+        sig += addnodes.desc_annotation("", "interface ")
+        sig += addnodes.desc_name("", interface_name)
+
+        # Add type parameters if present
+        if ts_interface.type_parameters:
+            sig += nodes.Text(f"<{', '.join(ts_interface.type_parameters)}>")
+
+        # Add extends clause if present
+        if ts_interface.extends:
+            sig += nodes.Text(f" extends {', '.join(ts_interface.extends)}")
+
+        # Add content container
+        content = addnodes.desc_content()
+        desc += content
 
         # Add interface documentation
         doc_lines = self.format_doc_comment(ts_interface.doc_comment)
         if doc_lines:
-            interface_node.extend(self.create_rst_content(doc_lines))
+            content.extend(self.create_rst_content(doc_lines))
 
         # Add source file information
-        source_info = nodes.paragraph()
-        source_info.append(nodes.emphasis(text=f"Source: {file_path.name}"))
-        interface_node.append(source_info)
-
-        # Add interface signature
-        signature = interface_name
-        if ts_interface.type_parameters:
-            signature += f"<{', '.join(ts_interface.type_parameters)}>"
-        if ts_interface.extends:
-            signature += f" extends {', '.join(ts_interface.extends)}"
-
-        signature_para = nodes.paragraph()
-        signature_para.append(nodes.strong(text=signature))
-        interface_node.append(signature_para)
+        source_info = nodes.paragraph("")
+        source_info += nodes.emphasis("", f"Source: {file_path.name}")
+        content += source_info
 
     def _add_interface_methods_section(
         self,
         interface_node: nodes.section,
-        interface_name: str,
         ts_interface: TSInterface,
     ) -> None:
         """Add interface methods section."""
         if ts_interface.methods:
-            methods_section = nodes.section(ids=[f"{interface_name}-methods"])
+            methods_section = nodes.section(ids=["methods"])
             methods_title = nodes.title(text="Methods")
             methods_section.append(methods_title)
 
             for method in ts_interface.methods:
-                method_section = self._format_interface_method(method)
-                if method_section:
-                    methods_section.append(method_section)
+                method_desc = self._format_method(method)
+                if method_desc:
+                    methods_section.append(method_desc)
 
             interface_node.append(methods_section)
 
     def _add_interface_properties_section(
         self,
         interface_node: nodes.section,
-        interface_name: str,
         ts_interface: TSInterface,
     ) -> None:
         """Add interface properties section."""
         if ts_interface.properties:
-            props_section = nodes.section(ids=[f"{interface_name}-properties"])
+            props_section = nodes.section(ids=["properties"])
             props_title = nodes.title(text="Properties")
             props_section.append(props_title)
 
             for prop in ts_interface.properties:
-                prop_section = self._format_property(prop)
-                if prop_section:
-                    props_section.append(prop_section)
+                prop_desc = self._format_property(prop)
+                if prop_desc:
+                    props_section.append(prop_desc)
 
             interface_node.append(props_section)
 
-    def _format_interface_method(
-        self, method: TSMethod
-    ) -> nodes.section | None:
-        """Format an interface method signature as RST."""
-        if not method.name:
-            return None
-
+    def _format_method(
+        self, method: TSMethod, title_override: str | None = None
+    ) -> addnodes.desc | None:
+        """Format a method as RST."""
         parent_interface = getattr(self, "current_interface_name", None)
-        method_id = (
-            f"{parent_interface}.{method.name}"
-            if parent_interface
-            else method.name
+        return self._format_method_common(
+            method, parent_interface, title_override
         )
 
-        method_section = nodes.section()
-        method_section["ids"] = [f"method-{method_id}"]
-
-        # Create method description
-        desc = addnodes.desc(
-            domain="ts",
-            objtype="method",
-            noindex=True,  # Don't index this in the global index
-        )
-        desc["ids"] = [f"ts-method-{method_id}"]
-        method_section += desc
-
-        # Create signature for method
-        sig = addnodes.desc_signature("", "", first=True)
-        sig["class"] = "sig-object ts"
-        desc += sig
-
-        # Add method name
-        sig += addnodes.desc_name("", method.name)
-
-        # Add method parameters
-        paramlist = addnodes.desc_parameterlist()
-        sig += paramlist
-
-        # Add each parameter
-        if method.parameters:
-            for param in method.parameters:
-                parameter = addnodes.desc_parameter("", "")
-                paramlist += parameter
-
-                # Use the shared parameter formatting helper
-                self.format_parameter_nodes(parameter, param)
-
-        # Add return type on the same line as the method signature
-        if method.return_type:
-            sig += nodes.Text(": ")
-            formatted_type = self.format_parameter_type(method.return_type)
-            sig += nodes.emphasis("", formatted_type)
-
-        # Add content container
-        content = addnodes.desc_content()
-        desc += content
-
-        # Add method documentation
-        if method.doc_comment:
-            # Skip returns in doc_comment since we'll handle it separately
-            should_skip_returns = bool(
-                method.return_type is not None or method.doc_comment.returns
-            )
-            doc_lines = self.format_doc_comment(
-                method.doc_comment, skip_returns=should_skip_returns
-            )
-            if doc_lines:
-                for node in self.create_rst_content(doc_lines):
-                    content += node
-
-            # Add return information using the shared method
-            if method.doc_comment and method.doc_comment.returns:
-                self.format_returns_section(
-                    content, method.doc_comment, method.return_type
-                )
-
-        return method_section
-
-    def _format_interface_method_detailed(
-        self, method: TSMethod
-    ) -> nodes.section | None:
-        """Format a method signature as RST."""
-        # Use the same implementation as _format_interface_method
-        return self._format_interface_method(method)
-
-    def _format_property(self, prop: TSProperty) -> nodes.section | None:
-        """Format a property signature as RST."""
+    def _format_property(self, prop: TSProperty) -> addnodes.desc | None:
+        """Format a property as RST."""
         parent_interface = getattr(self, "current_interface_name", None)
-        prop_id = (
-            f"{parent_interface}.{prop.name}" if parent_interface else prop.name
-        )
-
-        # Create property section
-        prop_section = nodes.section(ids=[f"property-{prop_id}"])
-
-        # Create property description
-        desc = addnodes.desc(
-            domain="ts",
-            objtype="attribute",
-            noindex=False,
-        )
-        desc["ids"] = [f"ts-property-{prop_id}"]
-        prop_section += desc
-
-        # Create signature
-        sig = addnodes.desc_signature("", "", first=True)
-        sig["class"] = "sig-object ts"
-        desc += sig
-
-        # Add property name
-        sig += addnodes.desc_name("", prop.name)
-
-        # Add optional marker for properties if needed
-        if hasattr(prop, "is_optional") and prop.is_optional:
-            sig += nodes.Text("?")
-
-        # Add property type
-        if prop.type_annotation:
-            sig += nodes.Text(": ")
-            formatted_type = self.format_parameter_type(prop.type_annotation)
-            sig += addnodes.desc_type("", formatted_type)
-
-        # Add content container
-        content = addnodes.desc_content()
-        desc += content
-
-        # Add property documentation
-        if prop.doc_comment:
-            if prop.doc_comment.description:
-                para = nodes.paragraph()
-                para += nodes.Text(prop.doc_comment.description)
-                content += para
-
-        return prop_section
+        return self._format_property_common(prop, parent_interface)
 
 
 class TSAutoDataDirective(TSAutoDirective):
@@ -1535,6 +1402,7 @@ class TSAutoDataDirective(TSAutoDirective):
         # Create function signature
         sig = addnodes.desc_signature("", "", first=True)
         sig["class"] = "sig-object ts"
+        sig["ids"] = [f"function-{function_name}"]
         func_node += sig
 
         # Add function name
@@ -1577,7 +1445,7 @@ class TSAutoDataDirective(TSAutoDirective):
                 documented_params = ts_function.doc_comment.params
 
             # Add a rubric for parameters
-            param_rubric = nodes.rubric("Parameters")
+            param_rubric = nodes.rubric(text="Parameters")
             content.append(param_rubric)
 
             # Create field list for parameters
@@ -1638,7 +1506,7 @@ class TSAutoDataDirective(TSAutoDirective):
             example_lines = self._format_examples(ts_function.doc_comment)
             if example_lines:
                 # Convert RST lines to docutils nodes
-                examples_rubric = nodes.rubric("Examples")
+                examples_rubric = nodes.rubric(text="Examples")
                 content.append(examples_rubric)
 
                 # Create a literal block with all examples

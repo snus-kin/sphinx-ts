@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from ts_sphinx.directives import TSAutoDirective
-from ts_sphinx.parser import (
+from sphinx_ts.directives import TSAutoDirective
+from sphinx_ts.parser import (
     TSClass,
     TSDocComment,
     TSInterface,
@@ -327,7 +327,7 @@ class TestErrorHandling:
 
     def test_handle_missing_parser(self) -> None:
         """Test handling when parser is unavailable."""
-        with patch("ts_sphinx.parser.TSParser") as mock_parser_class:
+        with patch("sphinx_ts.parser.TSParser") as mock_parser_class:
             # Make parser initialization fail
             mock_parser_class.side_effect = ImportError(
                 "Tree-sitter not available"
@@ -352,7 +352,7 @@ class TestErrorHandling:
 
         # Mock parser that returns empty results
         with patch(
-            "ts_sphinx.directives.TSAutoDirective.get_source_files",
+            "sphinx_ts.directives.TSAutoDirective.get_source_files",
         ) as mock_get_files:
             mock_get_files.return_value = []
 
@@ -366,9 +366,9 @@ class TestErrorHandling:
 
         with (
             patch(
-                "ts_sphinx.directives.TSAutoDirective.get_source_files",
+                "sphinx_ts.directives.TSAutoDirective.get_source_files",
             ) as mock_get_files,
-            patch("ts_sphinx.parser.TSParser.parse_file") as mock_parse,
+            patch("sphinx_ts.parser.TSParser.parse_file") as mock_parse,
         ):
             mock_get_files.return_value = [Path("test.ts")]
             mock_parse.side_effect = Exception("Parse error")

@@ -5,6 +5,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from sphinx_ts import setup
+from sphinx_ts.directives import (
+    TSAutoClassDirective,
+    TSAutoDataDirective,
+    TSAutoInterfaceDirective,
+)
+
 import ts_sphinx
 from ts_sphinx import setup
 from ts_sphinx.directives import (
