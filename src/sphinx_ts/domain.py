@@ -5,30 +5,26 @@ Provides a Sphinx domain for TypeScript with roles and object types.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from docutils.nodes import Element as DocElement
-from docutils.parsers.rst import directives
+from docutils.parsers.rst import Directive, directives
 from sphinx import addnodes
 from sphinx.directives import ObjectDescription
-from docutils.parsers.rst import Directive
 from sphinx.domains import Domain, ObjType
 from sphinx.locale import _
-from sphinx.roles import XRefRole
+from sphinx.roles import SphinxRole, XRefRole
 from sphinx.util import logging
 from sphinx.util.docfields import Field, TypedField
 from sphinx.util.nodes import make_refnode
-from typing import AbstractSet
-
-from sphinx.util.typing import RoleFunction
-from typing import cast
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from docutils.nodes import Element, reference
+    from docutils.nodes import Element, Node, reference
     from sphinx.builders import Builder
     from sphinx.environment import BuildEnvironment
+    from sphinx.util.typing import RoleFunction
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +51,10 @@ class TypeScriptObject(ObjectDescription[str]):
         return sig
 
     def add_target_and_index(
-        self, name: str, sig: str, signode: Element
+        self, name: str, sig: str, signode: Element, noindex: bool = False
     ) -> None:
         """Add cross-reference target and entry to the general index."""
-        domain = cast(TypeScriptDomain, self.env.get_domain("ts"))
+        domain = cast("TypeScriptDomain", self.env.get_domain("ts"))
 
         # Add target
         targetname = f"{self.objtype}-{name}"
@@ -69,7 +65,7 @@ class TypeScriptObject(ObjectDescription[str]):
             self.state.document.note_explicit_target(signode)
 
             # Add to domain's object list
-            domain.note_object(self.objtype, name, targetname)
+            domain.note_object(self.objtype, name, targetname, noindex=noindex)
 
 
 class TSClass(TypeScriptObject):
@@ -335,6 +331,19 @@ class TSXRefRole(XRefRole):
         return title, target
 
 
+class TSParamRole(SphinxRole):
+    """Role for TypeScript parameter names."""
+
+    def run(self) -> tuple[list[Node], list[system_message]]:
+        """Run the role."""
+        from docutils.nodes import Text, inline
+
+        node = inline(classes=["sig-name", "descname"])
+        node += Text(self.text)
+
+        return [node], []
+
+
 class TypeScriptDomain(Domain):
     """TypeScript domain."""
 
@@ -342,12 +351,12 @@ class TypeScriptDomain(Domain):
     label = "TypeScript"
 
     object_types: dict[str, ObjType] = {
-        "class": ObjType(_("class"), "class", "obj"),
-        "interface": ObjType(_("interface"), "interface", "obj"),
-        "method": ObjType(_("method"), "meth", "obj"),
-        "property": ObjType(_("property"), "prop", "obj"),
-        "function": ObjType(_("function"), "func", "obj"),
-        "variable": ObjType(_("variable"), "var", "obj"),
+        "class": ObjType("class", "class", "obj"),
+        "interface": ObjType("interface", "interface", "obj"),
+        "method": ObjType("method", "meth", "method", "obj"),
+        "property": ObjType("property", "prop", "property", "obj"),
+        "function": ObjType("function", "func", "function", "obj"),
+        "variable": ObjType("variable", "var", "variable", "obj"),
     }
 
     directives: dict[str, type[Directive]] = {
@@ -359,7 +368,7 @@ class TypeScriptDomain(Domain):
         "variable": TSVariable,
     }
 
-    roles: dict[str, RoleFunction | TSXRefRole] = {
+    roles: dict[str, RoleFunction | TSXRefRole | SphinxRole] = {
         "class": TSXRefRole(),
         "interface": TSXRefRole(),
         "meth": TSXRefRole(),
@@ -367,6 +376,7 @@ class TypeScriptDomain(Domain):
         "func": TSXRefRole(),
         "var": TSXRefRole(),
         "obj": TSXRefRole(),
+        "param": TSParamRole(),
     }
 
     initial_data: dict[str, Any] = {
@@ -378,26 +388,25 @@ class TypeScriptDomain(Domain):
         for obj_type in self.object_types:
             if obj_type in self.data["objects"]:
                 self.data["objects"][obj_type] = {
-                    name: (fn, synopsis)
-                    for name, (fn, synopsis) in self.data["objects"][
-                        obj_type
-                    ].items()
-                    if fn != docname
+                    name: obj_data
+                    for name, obj_data in self.data["objects"][obj_type].items()
+                    if obj_data[0] != docname
                 }
 
     def merge_domaindata(
-        self, docnames: AbstractSet[str], otherdata: dict[str, Any]
+        self,
+        docnames: Iterable[str],
+        otherdata: dict[str, Any],
     ) -> None:
         """Merge in data regarding docnames from a different domain."""
         for obj_type in self.object_types:
             if obj_type in otherdata["objects"]:
-                for name, (fn, synopsis) in otherdata["objects"][
-                    obj_type
-                ].items():
+                for name, obj_data in otherdata["objects"][obj_type].items():
+                    fn = obj_data[0]  # First element is always the docname
                     if fn in docnames:
                         if obj_type not in self.data["objects"]:
                             self.data["objects"][obj_type] = {}
-                        self.data["objects"][obj_type][name] = (fn, synopsis)
+                        self.data["objects"][obj_type][name] = obj_data
 
     def resolve_xref(
         self,
@@ -410,6 +419,38 @@ class TypeScriptDomain(Domain):
         contnode: Element,
     ) -> reference | None:
         """Resolve cross-references."""
+        logger = logging.getLogger(__name__)
+        logger.debug("Resolving TypeScript xref: %s:%s", typ, target)
+
+        # Handle method and property references with class/interface prefix (e.g. Class.method)
+        if "." in target and (typ in ["meth", "prop", "method", "property"]):
+            class_name, member_name = target.split(".", 1)
+
+            # First check if the qualified name exists directly
+            role_to_objtype = {
+                "meth": "method",
+                "prop": "property",
+                "method": "method",
+                "property": "property",
+            }
+            obj_type = role_to_objtype.get(typ)
+
+            if (
+                obj_type
+                and obj_type in self.data["objects"]
+                and target in self.data["objects"][obj_type]
+            ):
+                obj_data = self.data["objects"][obj_type][target]
+                docname = obj_data[0]
+                return make_refnode(
+                    builder,
+                    fromdocname,
+                    docname,
+                    f"{obj_type}-{target}",
+                    contnode,
+                    target,
+                )
+
         # Map role to object type
         if typ == "obj":
             # Search in all object types
@@ -418,14 +459,22 @@ class TypeScriptDomain(Domain):
                     obj_type in self.data["objects"]
                     and target in self.data["objects"][obj_type]
                 ):
-                    docname, synopsis = self.data["objects"][obj_type][target]
+                    obj_data = self.data["objects"][obj_type][target]
+                    docname = obj_data[0]
+                    target_id = target
+                    display_text = target
+                    if "." in target and obj_type in ["method", "property"]:
+                        # If it's a qualified name, use the full name for ID
+                        target_id = target
+                        # But extract just the member name for display
+                        display_text = target.split(".")[-1]
                     return make_refnode(
                         builder,
                         fromdocname,
                         docname,
-                        f"{obj_type}-{target}",
+                        f"{obj_type}-{target_id}",
                         contnode,
-                        target,
+                        display_text,
                     )
         else:
             # Map specific role to object type
@@ -444,16 +493,25 @@ class TypeScriptDomain(Domain):
                 and obj_type in self.data["objects"]
                 and target in self.data["objects"][obj_type]
             ):
-                docname, synopsis = self.data["objects"][obj_type][target]
+                obj_data = self.data["objects"][obj_type][target]
+                docname = obj_data[0]
+                target_id = target
+                display_text = target
+                if "." in target and obj_type in ["method", "property"]:
+                    # If it's a qualified name, use the full name for ID
+                    target_id = target
+                    # But extract just the member name for display
+                    display_text = target.split(".")[-1]
                 return make_refnode(
                     builder,
                     fromdocname,
                     docname,
-                    f"{obj_type}-{target}",
+                    f"{obj_type}-{target_id}",
                     contnode,
-                    target,
+                    display_text,
                 )
 
+        logger.debug("TypeScript xref not found: %s:%s", typ, target)
         return None
 
     def resolve_any_xref(
@@ -473,24 +531,50 @@ class TypeScriptDomain(Domain):
                 obj_type in self.data["objects"]
                 and target in self.data["objects"][obj_type]
             ):
-                docname, synopsis = self.data["objects"][obj_type][target]
-                refnode = make_refnode(
-                    builder,
-                    fromdocname,
-                    docname,
-                    f"{obj_type}-{target}",
-                    contnode,
-                    target,
-                )
-                results.append((f"ts:{obj_type}", refnode))
+                obj_data = self.data["objects"][obj_type][target]
+                docname = obj_data[0]
+                # Check if we should include this in results (not noindex)
+                if len(obj_data) < 3 or not obj_data[2]:
+                    refnode = make_refnode(
+                        builder,
+                        fromdocname,
+                        docname,
+                        f"{obj_type}-{target}",
+                        contnode,
+                        target,
+                    )
+                    results.append((f"ts:{obj_type}", refnode))
 
         return results
 
     def get_objects(self) -> Iterator[tuple[str, str, str, str, str, int]]:
         """Return an iterable of "object descriptions"."""
+        objects_list = []
         for obj_type, objects in self.data["objects"].items():
-            for name, (docname, _synopsis) in objects.items():
-                yield (name, name, obj_type, docname, f"{obj_type}-{name}", 1)
+            for name, obj_data in objects.items():
+                # Unpack object data with support for older format
+                if len(obj_data) >= 3:
+                    docname, synopsis, noindex = obj_data
+                else:
+                    docname, synopsis = obj_data
+                    noindex = False
+
+                # Only add objects that shouldn't be hidden from TOC
+                if not noindex:
+                    objects_list.append(
+                        (
+                            name,
+                            name,
+                            obj_type,
+                            docname,
+                            f"{obj_type}-{name}",
+                            1,
+                        )
+                    )
+
+        # Sort objects by name (the first element in the tuple)
+        objects_list.sort(key=lambda x: x[0])
+        yield from objects_list
 
     def get_full_qualified_name(self, node: Element) -> str | None:
         """Get the fully qualified name of a node."""
@@ -503,10 +587,20 @@ class TypeScriptDomain(Domain):
         name: str,
         _target: str,
         _location: Element | None = None,
+        noindex: bool = False,
     ) -> None:
-        """Note a TypeScript object for cross-referencing."""
+        """Note a TypeScript object for cross-referencing.
+
+        Args:
+            obj_type: The type of object (class, method, property, etc.)
+            name: The name of the object
+            _target: Unused target parameter
+            _location: Unused location parameter
+            noindex: If True, the object won't appear in the global index/TOC
+
+        """
         if obj_type not in self.data["objects"]:
             self.data["objects"][obj_type] = {}
 
         docname = getattr(self.env, "docname", "")
-        self.data["objects"][obj_type][name] = (docname, "")
+        self.data["objects"][obj_type][name] = (docname, "", noindex)

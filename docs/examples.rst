@@ -94,7 +94,7 @@ Reference specific methods:
 Property References
 ~~~~~~~~~~~~~~~~~~
 
-Reference properties like :ts:prop:`Calculator.memory`.
+Reference properties like :ts:meth:`Calculator.memory`.
 
 Function and Variable References
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

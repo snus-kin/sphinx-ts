@@ -9,6 +9,7 @@ Welcome to the TypeScript Sphinx Extension documentation! This extension provide
 
    usage
    examples
+   test
 
 Quick Start
 -----------
