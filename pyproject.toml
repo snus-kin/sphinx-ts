@@ -9,7 +9,6 @@ dependencies = [
     "tree-sitter>=0.20.0",
     "tree-sitter-typescript>=0.20.0",
     "docutils>=0.17",
-    "pytest-cov>=6.2.1",
     "sphinx-rtd-theme>=3.0.2",
     "furo>=2025.7.19",
 ]
@@ -27,6 +26,7 @@ dev = [
     "pytest>=8.4.1",
     "ruff>=0.12.11",
     "tree-sitter>=0.23.2",
+    "pytest-cov>=6.2.1",
 ]
 
 [tool.ruff]
