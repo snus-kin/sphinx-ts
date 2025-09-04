@@ -21,11 +21,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: TypeScript",
     "Topic :: Documentation",
     "Topic :: Documentation :: Sphinx",
     "Topic :: Software Development :: Documentation",
-    "Topic :: Text Processing :: Markup",
     "Framework :: Sphinx",
     "Framework :: Sphinx :: Extension",
 ]
