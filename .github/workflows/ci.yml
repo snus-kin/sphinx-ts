@@ -83,7 +83,7 @@ jobs:
     if: github.event_name == 'release' && github.event.action == 'published'
     environment:
       name: pypi
-      url: https://pypi.org/p/sphinx-ts
+      url: https://test.pypi.org/p/sphinx-ts
     permissions:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
 
