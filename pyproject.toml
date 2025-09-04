@@ -1,8 +1,34 @@
 [project]
 name = "sphinx-ts"
-version = "0.1.0"
+version = "0.1.1"
 description = "Sphinx extension for TypeScript documentation using Tree-sitter"
 readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Thomas Carroll" }]
+maintainers = [{ name = "Thomas Carroll" }]
+keywords = [
+    "sphinx",
+    "typescript",
+    "documentation",
+    "autodoc",
+    "tree-sitter",
+    "jsdoc",
+    "api-documentation",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: TypeScript",
+    "Topic :: Documentation",
+    "Topic :: Documentation :: Sphinx",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Text Processing :: Markup",
+    "Framework :: Sphinx",
+    "Framework :: Sphinx :: Extension",
+]
 requires-python = ">=3.12"
 dependencies = [
     "sphinx>=5.0.0",
@@ -12,6 +38,13 @@ dependencies = [
     "sphinx-rtd-theme>=3.0.2",
     "furo>=2025.7.19",
 ]
+
+[project.urls]
+Homepage = "https://github.com/snus-kin/sphinx-ts"
+Repository = "https://github.com/snus-kin/sphinx-ts"
+Documentation = "https://sphinx-ts.readthedocs.io"
+"Bug Reports" = "https://github.com/snus-kin/sphinx-ts/issues"
+Changelog = "https://github.com/snus-kin/sphinx-ts/releases"
 
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
