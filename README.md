@@ -1,6 +1,9 @@
 # TypeScript Sphinx Extension
 
-A Sphinx extension that provides autodoc-like functionality for TypeScript files using Tree-sitter for parsing. This extension allows you to automatically generate documentation for TypeScript classes, interfaces, and variables from your source code, similar to Python's autodoc.
+A Sphinx extension that provides autodoc-like functionality for TypeScript files
+using Tree-sitter for parsing. This extension allows you to automatically
+generate documentation for TypeScript classes, interfaces, and variables from
+your source code, similar to Python's autodoc.
 
 ## Features
 
@@ -13,27 +16,15 @@ A Sphinx extension that provides autodoc-like functionality for TypeScript files
 
 ## Installation
 
-### Prerequisites
-
-- Python 3.9 or higher
-- Sphinx 5.0.0 or higher
+This project uses uv for package management.
 
 ### Install from Source
 
 ```bash
 git clone https://github.com/yourusername/ts-sphinx.git
 cd ts-sphinx
-pip install -e .
+uv sync
 ```
-
-### Dependencies
-
-The extension automatically installs the following dependencies:
-
-- `sphinx>=5.0.0`
-- `tree-sitter>=0.20.0`
-- `tree-sitter-typescript>=0.20.0`
-- `docutils>=0.17`
 
 ## Configuration
 
@@ -117,125 +108,8 @@ The extension provides several roles for cross-referencing:
 :ts:class:`MyClass`
 :ts:interface:`MyInterface`
 :ts:enum:`MyEnum`
-:ts:meth:`MyClass.myMethod`
 :ts:prop:`MyClass.myProperty`
-:ts:func:`myFunction`
-:ts:var:`myVariable`
 ```
-
-## Example
-
-Given the following TypeScript file (`src/example.ts`):
-
-```typescript
-/**
- * A sample class demonstrating the documentation features.
- *
- * @example
- * ```typescript
- * const calc = new Calculator();
- * const result = calc.add(5, 3);
- * console.log(result); // 8
- * ```
- */
-export class Calculator {
-    /**
-     * The current value stored in the calculator.
-     */
-    public value: number = 0;
-
-    /**
-     * Adds two numbers together.
-     *
-     * @param a The first number
-     * @param b The second number
-     * @returns The sum of a and b
-     * @example
-     * ```typescript
-     * calc.add(2, 3); // returns 5
-     * ```
-     */
-    public add(a: number, b: number): number {
-        return a + b;
-    }
-
-    /**
-     * Multiplies two numbers.
-     *
-     * @param a The first number
-     * @param b The second number
-     * @returns The product of a and b
-     */
-    public multiply(a: number, b: number): number {
-        return a * b;
-    }
-}
-
-/**
- * Configuration interface for the calculator.
- */
-export interface CalculatorConfig {
-    /**
-     * The precision for decimal calculations.
-     */
-    precision: number;
-
-    /**
-     * Whether to round results.
-     */
-    roundResults?: boolean;
-}
-
-/**
- * Default configuration for the calculator.
- */
-export const DEFAULT_CONFIG: CalculatorConfig = {
-    precision: 2,
-    roundResults: true
-};
-
-/**
- * Status levels for calculator operations.
- */
-export enum CalculatorStatus {
-    /** Operation completed successfully */
-    SUCCESS = "success",
-    /** Warning during calculation */
-    WARNING = "warning", 
-    /** Error occurred */
-    ERROR = "error"
-}
-```
-
-You can document it in your RST file:
-
-```rst
-Calculator Module
-=================
-
-.. ts:autoclass:: Calculator
-   :members:
-   :undoc-members:
-
-Configuration
--------------
-
-.. ts:autointerface:: CalculatorConfig
-   :members:
-
-.. ts:autoenum:: CalculatorStatus
-   :members:
-
-.. ts:autodata:: DEFAULT_CONFIG
-```
-
-This will generate comprehensive documentation including:
-
-- Class description with examples
-- Method signatures with parameter and return type information
-- Property documentation
-- Interface member documentation
-- Variable type and value information
 
 ## JSDoc Support
 
@@ -246,7 +120,7 @@ The extension supports standard JSDoc tags:
 - `@example` - Code examples
 - `@since version` - Version information
 - `@deprecated message` - Deprecation notices
-- Custom tags are also preserved
+- TODO - Custom tags are also preserved
 
 ## Advanced Features
 
@@ -268,66 +142,6 @@ For classes, the extension shows:
 - Implemented interfaces
 - Inherited methods and properties
 
-### Source Links
+### (TODO) Source Links
 
 Each documented item includes a reference to its source file for easy navigation.
-
-## Development
-
-### Setting up Development Environment
-
-```bash
-git clone https://github.com/yourusername/ts-sphinx.git
-cd ts-sphinx
-pip install -e ".[dev]"
-```
-
-### Running Tests
-
-```bash
-pytest
-```
-
-### Code Formatting
-
-```bash
-black src/
-isort src/
-```
-
-### Type Checking
-
-```bash
-mypy src/
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Changelog
-
-### Version 0.1.0
-
-- Initial release
-- Support for `ts:autoclass`, `ts:autointerface`, `ts:autoenum`, and `ts:autodata` directives
-- JSDoc comment parsing
-- Tree-sitter based TypeScript parsing
-- Full Sphinx domain integration
-- Cross-referencing support
-- Enum documentation with member value display
-
-## Acknowledgments
-
-- [Tree-sitter](https://tree-sitter.github.io/) for robust code parsing
-- [Sphinx](https://www.sphinx-doc.org/) for the documentation framework
-- The Python autodoc extension for inspiration
