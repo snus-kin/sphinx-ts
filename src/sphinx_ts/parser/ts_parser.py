@@ -1,11 +1,12 @@
 """TypeScript Parser Module.
 
-Uses Tree-sitter to parse TypeScript files and extract information.
+Contains the main TSParser class that uses Tree-sitter to parse TypeScript
+files and extract information about classes, interfaces, variables, functions,
+and enums.
 """
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Any
 
@@ -13,199 +14,16 @@ import tree_sitter
 from tree_sitter import Language, Parser
 from tree_sitter_typescript import language_typescript
 
-
-class TSDocComment:
-    """Represents a TypeScript JSDoc comment."""
-
-    def __init__(self, text: str) -> None:
-        """Initialize a TypeScript JSDoc comment.
-
-        Args:
-            text: The raw JSDoc comment text
-
-        """
-        self.text = text
-        self.description = ""
-        self.params: dict[str, str] = {}
-        self.returns: str | None = None
-        self.examples: list[str] = []
-        self.deprecated: str | None = None
-        self.since: str | None = None
-        self.tags: dict[str, str] = {}
-
-        self._parse()
-
-    def _parse(self) -> None:
-        """Parse JSDoc comment text."""
-        # Remove comment markers
-        lines = []
-        for original_line in self.text.split("\n"):
-            processed_line = original_line.strip()
-            if processed_line.startswith("/**"):
-                processed_line = processed_line[3:].strip()
-            elif processed_line.startswith("*/"):
-                continue
-            elif processed_line.startswith("*"):
-                processed_line = processed_line[1:].strip()
-            lines.append(processed_line)
-
-        content = "\n".join(lines).strip()
-
-        # Split into description and tags
-        parts = re.split(r"\n\s*@", content, maxsplit=1)
-        self.description = parts[0].strip()
-
-        if len(parts) > 1:
-            tag_content = parts[1]
-            self._parse_tags("@" + tag_content)
-
-    def _parse_tags(self, tag_content: str) -> None:
-        """Parse JSDoc tags."""
-        tags = re.findall(
-            r"@(\w+)(?:\s+([^@]+))?",
-            tag_content,
-            re.MULTILINE | re.DOTALL,
-        )
-
-        for tag_name, original_tag_value in tags:
-            tag_value = original_tag_value.strip() if original_tag_value else ""
-
-            if tag_name == "param":
-                # Parse @param {type} name description
-                match = re.match(
-                    r"(?:\{([^}]+)\})?\s*(\w+)(?:\s+(.+))?",
-                    tag_value,
-                    re.DOTALL,
-                )
-                if match:
-                    param_type, param_name, param_desc = match.groups()
-                    self.params[param_name] = param_desc or ""
-            elif tag_name in {"returns", "return"}:
-                self.returns = tag_value
-            elif tag_name == "example":
-                # TODO strip out markdown in tag in a better way
-                tag_value = tag_value.replace("```typescript", "").replace("```", "")
-                self.examples.append(tag_value)
-            elif tag_name == "deprecated":
-                self.deprecated = tag_value
-            elif tag_name == "since":
-                self.since = tag_value
-            else:
-                self.tags[tag_name] = tag_value
-
-
-class TSMember:
-    """Base class for TypeScript members (methods, properties, etc.)."""
-
-    def __init__(self, name: str, kind: str) -> None:
-        """Initialize a TypeScript member.
-
-        Args:
-            name: The name of the member
-            kind: The kind of member (method, property, etc.)
-
-        """
-        self.name = name
-        self.kind = kind  # 'method', 'property', 'constructor', etc.
-        self.modifiers: list[str] = []
-        self.type_annotation: str | None = None
-        self.doc_comment: TSDocComment | None = None
-        self.is_static = False
-        self.is_private = False
-        self.is_protected = False
-        self.is_readonly = False
-        self.is_optional = False
-
-
-class TSMethod(TSMember):
-    """Represents a TypeScript method."""
-
-    def __init__(self, name: str) -> None:
-        """Initialize a TypeScript method.
-
-        Args:
-            name: The name of the method
-
-        """
-        super().__init__(name, "method")
-        self.parameters: list[dict[str, Any]] = []
-        self.return_type: str | None = None
-        self.is_async = False
-        self.is_generator = False
-
-
-class TSProperty(TSMember):
-    """Represents a TypeScript property."""
-
-    def __init__(self, name: str) -> None:
-        """Initialize a TypeScript property.
-
-        Args:
-            name: The name of the property
-
-        """
-        super().__init__(name, "property")
-        self.default_value: str | None = None
-
-
-class TSClass:
-    """Represents a TypeScript class."""
-
-    def __init__(self, name: str) -> None:
-        """Initialize a TypeScript class.
-
-        Args:
-            name: The name of the class
-
-        """
-        self.name = name
-        self.doc_comment: TSDocComment | None = None
-        self.extends: str | None = None
-        self.implements: list[str] = []
-        self.type_parameters: list[str] = []
-        self.methods: list[TSMethod] = []
-        self.properties: list[TSProperty] = []
-        self.constructor: TSMethod | None = None
-        self.is_abstract = False
-        self.is_export = False
-        self.modifiers: list[str] = []
-
-
-class TSInterface:
-    """Represents a TypeScript interface."""
-
-    def __init__(self, name: str) -> None:
-        """Initialize a TypeScript interface.
-
-        Args:
-            name: The name of the interface
-
-        """
-        self.name = name
-        self.doc_comment: TSDocComment | None = None
-        self.extends: list[str] = []
-        self.type_parameters: list[str] = []
-        self.methods: list[TSMethod] = []
-        self.properties: list[TSProperty] = []
-        self.is_export = False
-
-
-class TSVariable:
-    """Represents a TypeScript variable/constant."""
-
-    def __init__(self, name: str) -> None:
-        """Initialize a TypeScript variable.
-
-        Args:
-            name: The name of the variable
-
-        """
-        self.name = name
-        self.doc_comment: TSDocComment | None = None
-        self.type_annotation: str | None = None
-        self.value: str | None = None
-        self.kind = "let"  # 'let', 'const', 'var'
-        self.is_export = False
+from .ast_nodes import (
+    TSClass,
+    TSEnum,
+    TSEnumMember,
+    TSInterface,
+    TSMethod,
+    TSProperty,
+    TSVariable,
+)
+from .doc_comment import TSDocComment
 
 
 class TSParser:
@@ -230,6 +48,7 @@ class TSParser:
                 "interfaces": [],
                 "variables": [],
                 "functions": [],
+                "enums": [],
                 "file_path": str(file_path),
             }
 
@@ -243,7 +62,9 @@ class TSParser:
             "interfaces": [],
             "variables": [],
             "functions": [],
-            "file_path": str(file_path),
+            "enums": [],
+            "types": [],
+            "file_path": file_path,
         }
 
         if tree and tree.root_node:
@@ -267,18 +88,68 @@ class TSParser:
             if interface_obj:
                 result["interfaces"].append(interface_obj)
 
+        elif node.type == "type_alias_declaration":
+            type_alias_obj = self._parse_type_alias(node, source_code)
+            if type_alias_obj:
+                result["types"].append(type_alias_obj)
+
+        elif node.type == "enum_declaration":
+            enum_obj = self._parse_enum(node, source_code)
+            if enum_obj:
+                result["enums"].append(enum_obj)
+
         elif node.type == "variable_declaration":
             variables = self._parse_variable_declaration(node, source_code)
             result["variables"].extend(variables)
+
+        elif node.type == "lexical_declaration":
+            # Only process if not inside an export statement
+            if node.parent and node.parent.type != "export_statement":
+                variables = self._parse_variable_declaration(node, source_code)
+                result["variables"].extend(variables)
 
         elif node.type == "function_declaration":
             function_obj = self._parse_function(node, source_code)
             if function_obj:
                 result["functions"].append(function_obj)
 
+        elif node.type == "export_statement":
+            for child in node.children:
+                if child.type in [
+                    "variable_declaration",
+                    "lexical_declaration",
+                ]:
+                    variables = self._parse_variable_declaration(
+                        child, source_code
+                    )
+                    result["variables"].extend(variables)
+                elif child.type == "function_declaration":
+                    function_obj = self._parse_function(child, source_code)
+                    if function_obj:
+                        result["functions"].append(function_obj)
+                elif child.type == "enum_declaration":
+                    enum_obj = self._parse_enum(child, source_code)
+                    if enum_obj:
+                        result["enums"].append(enum_obj)
+                elif child.type == "type_alias_declaration":
+                    type_alias_obj = self._parse_type_alias(child, source_code)
+                    if type_alias_obj:
+                        result["types"].append(type_alias_obj)
+
         # Recursively traverse child nodes
-        for child in node.children:
-            self._traverse_node(child, source_code, result)
+        # Skip children if this is an export statement that we've already
+        # processed
+        if node.type != "export_statement" or not any(
+            child.type
+            in [
+                "variable_declaration",
+                "lexical_declaration",
+                "enum_declaration",
+            ]
+            for child in node.children
+        ):
+            for child in node.children:
+                self._traverse_node(child, source_code, result)
 
     def _get_node_text(self, node: tree_sitter.Node, source_code: bytes) -> str:
         """Get the text content of a node."""
@@ -346,7 +217,7 @@ class TSParser:
                     else:
                         class_obj.methods.append(method)
 
-            elif child.type == "field_definition":
+            elif child.type in ["field_definition", "public_field_definition"]:
                 prop = self._parse_property(child, source_code)
                 if prop:
                     class_obj.properties.append(prop)
@@ -387,7 +258,7 @@ class TSParser:
         source_code: bytes,
     ) -> TSProperty | None:
         """Parse a property definition."""
-        name_node = node.child_by_field_name("property")
+        name_node = node.child_by_field_name("name")
         if not name_node:
             return None
 
@@ -436,6 +307,97 @@ class TSParser:
             interface_obj.is_export = True
 
         return interface_obj
+
+    def _parse_enum(
+        self,
+        node: tree_sitter.Node,
+        source_code: bytes,
+    ) -> TSEnum | None:
+        """Parse an enum declaration."""
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            return None
+
+        enum_name = self._get_node_text(name_node, source_code)
+        enum_obj = TSEnum(enum_name)
+
+        # Get documentation comment
+        enum_obj.doc_comment = self._find_doc_comment(node, source_code)
+
+        # If no comment found and we're in an export statement, check the
+        # export statement
+        if (
+            not enum_obj.doc_comment
+            and node.parent
+            and node.parent.type == "export_statement"
+        ):
+            enum_obj.doc_comment = self._find_doc_comment(
+                node.parent, source_code
+            )
+
+        # Check for const enum
+        for child in node.children:
+            if child.type == "const" or (
+                hasattr(child, "text") and child.text == b"const"
+            ):
+                enum_obj.is_const = True
+                break
+
+        # Check for declare enum
+        parent = node.parent
+        if parent and parent.type == "ambient_declaration":
+            enum_obj.is_declare = True
+
+        # Check for export modifier
+        if parent and parent.type == "export_statement":
+            enum_obj.is_export = True
+
+        # Parse enum body
+        body_node = node.child_by_field_name("body")
+        if body_node:
+            self._parse_enum_body(body_node, source_code, enum_obj)
+
+        return enum_obj
+
+    def _parse_enum_body(
+        self,
+        body_node: tree_sitter.Node,
+        source_code: bytes,
+        enum_obj: TSEnum,
+    ) -> None:
+        """Parse enum body members."""
+        for child in body_node.children:
+            if child.type == "property_identifier":
+                # Simple enum member without value
+                member_name = self._get_node_text(child, source_code)
+                member = TSEnumMember(member_name)
+                member.doc_comment = self._find_doc_comment(child, source_code)
+                enum_obj.members.append(member)
+            elif child.type == "enum_assignment":
+                # Enum member with assignment
+                name_node = child.child_by_field_name("name")
+                value_node = child.child_by_field_name("value")
+
+                if name_node:
+                    member_name = self._get_node_text(name_node, source_code)
+                    member = TSEnumMember(member_name)
+                    member.doc_comment = self._find_doc_comment(
+                        child, source_code
+                    )
+
+                    if value_node:
+                        member.value = self._get_node_text(
+                            value_node, source_code
+                        )
+                        # Check if the value is computed (contains expressions)
+                        member.computed_value = value_node.type not in [
+                            "string",
+                            "number",
+                            "true",
+                            "false",
+                        ]
+
+                    enum_obj.members.append(member)
 
     def _parse_interface_body(
         self,
@@ -502,6 +464,19 @@ class TSParser:
 
         return method
 
+    def _get_previous_sibling(
+        self, node: tree_sitter.Node
+    ) -> tree_sitter.Node | None:
+        """Get the previous sibling of a node."""
+        if not node.parent:
+            return None
+
+        siblings = list(node.parent.children)
+        for i, sibling in enumerate(siblings):
+            if sibling.id == node.id and i > 0:
+                return siblings[i - 1]
+        return None
+
     def _parse_variable_declaration(
         self,
         node: tree_sitter.Node,
@@ -510,17 +485,50 @@ class TSParser:
         """Parse variable declarations."""
         variables = []
 
+        # Check if this is an export declaration
+        is_export = False
+        parent = node.parent
+        if parent and parent.type == "export_statement":
+            is_export = True
+
+        # Store seen variable names to avoid duplicates
+        seen_variables = set()
+
         for child in node.children:
             if child.type == "variable_declarator":
                 name_node = child.child_by_field_name("name")
                 if name_node:
                     var_name = self._get_node_text(name_node, source_code)
                     var_obj = TSVariable(var_name)
+                    var_obj.is_export = is_export
 
-                    # Get documentation comment
+                    # Try to find doc comment for the variable
+                    # First check node (declaration level)
                     var_obj.doc_comment = self._find_doc_comment(
                         node, source_code
                     )
+
+                    # If not found, check parent for export statements
+                    if (
+                        not var_obj.doc_comment
+                        and parent
+                        and parent.type == "export_statement"
+                    ):
+                        var_obj.doc_comment = self._find_doc_comment(
+                            parent, source_code
+                        )
+
+                    # Also look at export statements with multiple variables
+                    if not var_obj.doc_comment:
+                        # Look for doc comments directly above the variable
+                        # declarator
+                        prev_sibling = self._get_previous_sibling(child)
+                        if prev_sibling and prev_sibling.type == "comment":
+                            comment_text = self._get_node_text(
+                                prev_sibling, source_code
+                            )
+                            if comment_text.startswith("/**"):
+                                var_obj.doc_comment = TSDocComment(comment_text)
 
                     # Parse type annotation
                     type_node = child.child_by_field_name("type")
@@ -544,7 +552,12 @@ class TSParser:
                             kind_node, source_code
                         )
 
-                    variables.append(var_obj)
+                    # Only add the variable if we haven't seen it before
+                    if var_name not in seen_variables:
+                        seen_variables.add(var_name)
+                        variables.append(var_obj)
+                    else:
+                        continue
 
         return variables
 
@@ -576,6 +589,11 @@ class TSParser:
             func.return_type = self._get_node_text(
                 return_type_node, source_code
             )
+
+        # Check for export modifier
+        parent = node.parent
+        if parent and parent.type == "export_statement":
+            func.is_export = True
 
         return func
 
@@ -618,3 +636,43 @@ class TSParser:
                 parameters.append(param_info)
 
         return parameters
+
+    def _parse_type_alias(
+        self,
+        node: tree_sitter.Node,
+        source_code: bytes,
+    ) -> dict[str, Any] | None:
+        """Parse a TypeScript type alias declaration."""
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            return None
+
+        type_alias_name = self._get_node_text(name_node, source_code)
+
+        # Get the type definition
+        type_node = node.child_by_field_name("value")
+        type_definition = ""
+        if type_node:
+            type_definition = self._get_node_text(type_node, source_code)
+
+        # Get type parameters if present
+        type_parameters_node = node.child_by_field_name("type_parameters")
+        type_parameters = []
+        if type_parameters_node:
+            for child in type_parameters_node.children:
+                if child.type == "type_identifier":
+                    type_parameters.append(
+                        self._get_node_text(child, source_code)
+                    )
+
+        # Find associated documentation comment
+        doc_comment = self._find_doc_comment(node, source_code)
+
+        return {
+            "name": type_alias_name,
+            "type_definition": type_definition,
+            "type_parameters": type_parameters,
+            "doc_comment": doc_comment,
+            "start_line": node.start_point[0] + 1,
+            "end_line": node.end_point[0] + 1,
+        }

@@ -6,7 +6,7 @@ A Sphinx extension that provides autodoc-like functionality for TypeScript files
 
 - **Automatic Documentation Generation**: Extract documentation from TypeScript source files
 - **JSDoc Support**: Parse and render JSDoc comments as reStructuredText
-- **Multiple Directives**: Support for `ts:autoclass`, `ts:autointerface`, and `ts:autodata`
+- **Multiple Directives**: Support for `ts:autoclass`, `ts:autointerface`, `ts:autoenum`, and `ts:autodata`
 - **Tree-sitter Parsing**: Robust TypeScript parsing using Tree-sitter
 - **Sphinx Integration**: Full integration with Sphinx's cross-referencing and indexing systems
 - **Type Information**: Display TypeScript type annotations and signatures
@@ -41,15 +41,15 @@ Add the extension to your Sphinx `conf.py`:
 
 ```python
 extensions = [
-    'ts_sphinx',
+    'sphinx_ts',
     # other extensions...
 ]
 
 # TypeScript Sphinx configuration
-ts_sphinx_src_dirs = ['src', 'lib']  # Directories to scan for TypeScript files
-ts_sphinx_exclude_patterns = ['**/*.test.ts', '**/*.spec.ts']  # Files to exclude
-ts_sphinx_include_private = False  # Include private members
-ts_sphinx_include_inherited = True  # Include inherited members
+sphinx_ts_src_dirs = ['src', 'lib']  # Directories to scan for TypeScript files
+sphinx_ts_exclude_patterns = ['**/*.test.ts', '**/*.spec.ts']  # Files to exclude
+sphinx_ts_include_private = False  # Include private members
+sphinx_ts_include_inherited = True  # Include inherited members
 ```
 
 ## Usage
@@ -73,6 +73,16 @@ Automatically document a TypeScript interface:
 
 ```rst
 .. ts:autointerface:: MyInterface
+   :members:
+   :undoc-members:
+```
+
+#### `ts:autoenum`
+
+Automatically document a TypeScript enum:
+
+```rst
+.. ts:autoenum:: MyEnum
    :members:
    :undoc-members:
 ```
@@ -106,6 +116,7 @@ The extension provides several roles for cross-referencing:
 ```rst
 :ts:class:`MyClass`
 :ts:interface:`MyInterface`
+:ts:enum:`MyEnum`
 :ts:meth:`MyClass.myMethod`
 :ts:prop:`MyClass.myProperty`
 :ts:func:`myFunction`
@@ -119,7 +130,7 @@ Given the following TypeScript file (`src/example.ts`):
 ```typescript
 /**
  * A sample class demonstrating the documentation features.
- * 
+ *
  * @example
  * ```typescript
  * const calc = new Calculator();
@@ -135,7 +146,7 @@ export class Calculator {
 
     /**
      * Adds two numbers together.
-     * 
+     *
      * @param a The first number
      * @param b The second number
      * @returns The sum of a and b
@@ -150,7 +161,7 @@ export class Calculator {
 
     /**
      * Multiplies two numbers.
-     * 
+     *
      * @param a The first number
      * @param b The second number
      * @returns The product of a and b
@@ -168,7 +179,7 @@ export interface CalculatorConfig {
      * The precision for decimal calculations.
      */
     precision: number;
-    
+
     /**
      * Whether to round results.
      */
@@ -182,6 +193,18 @@ export const DEFAULT_CONFIG: CalculatorConfig = {
     precision: 2,
     roundResults: true
 };
+
+/**
+ * Status levels for calculator operations.
+ */
+export enum CalculatorStatus {
+    /** Operation completed successfully */
+    SUCCESS = "success",
+    /** Warning during calculation */
+    WARNING = "warning", 
+    /** Error occurred */
+    ERROR = "error"
+}
 ```
 
 You can document it in your RST file:
@@ -198,6 +221,9 @@ Configuration
 -------------
 
 .. ts:autointerface:: CalculatorConfig
+   :members:
+
+.. ts:autoenum:: CalculatorStatus
    :members:
 
 .. ts:autodata:: DEFAULT_CONFIG
@@ -293,11 +319,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ### Version 0.1.0
 
 - Initial release
-- Support for `ts:autoclass`, `ts:autointerface`, and `ts:autodata` directives
+- Support for `ts:autoclass`, `ts:autointerface`, `ts:autoenum`, and `ts:autodata` directives
 - JSDoc comment parsing
 - Tree-sitter based TypeScript parsing
 - Full Sphinx domain integration
 - Cross-referencing support
+- Enum documentation with member value display
 
 ## Acknowledgments
 

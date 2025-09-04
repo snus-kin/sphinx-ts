@@ -3,8 +3,9 @@
 from unittest.mock import Mock
 
 import pytest
+from sphinx.environment import BuildEnvironment
 
-from ts_sphinx.domain import TSXRefRole, TypeScriptDomain
+from sphinx_ts.domain import TSXRefRole, TypeScriptDomain
 
 # Test constants
 EXPECTED_OBJECTS_COUNT = 3
@@ -18,6 +19,15 @@ class MockBuildEnvironment:
         self.docname = "test_doc"
         self.found_docs = set()
         self.domaindata = {}
+        self.app = Mock()
+        self.config = Mock()
+        self.srcdir = ""
+        self.doctreedir = ""
+        self.events = Mock()
+
+    def get_domain(self, name: str) -> Mock:
+        """Mock get_domain method."""
+        return Mock()
 
 
 class TestTypeScriptDomain:
@@ -26,6 +36,11 @@ class TestTypeScriptDomain:
     def setup_method(self) -> None:
         """Set up test fixtures."""
         self.env = MockBuildEnvironment()
+        # Create a proper mock that satisfies BuildEnvironment interface
+        self.env = Mock(spec=BuildEnvironment)
+        self.env.docname = "test_doc"
+        self.env.found_docs = set()
+        self.env.domaindata = {}
         self.domain = TypeScriptDomain(self.env)
 
     def test_domain_initialization(self) -> None:
@@ -67,6 +82,7 @@ class TestTypeScriptDomain:
         assert self.domain.data["objects"]["class"]["MyClass"] == (
             "test_doc",
             "",
+            False,
         )
 
     def test_clear_doc(self) -> None:
@@ -106,8 +122,9 @@ class TestTypeScriptDomain:
         builder = Mock()
         contnode = Mock()
 
+        env_mock = Mock(spec=BuildEnvironment)
         result = self.domain.resolve_xref(
-            self.env,
+            env_mock,
             "source_doc",
             builder,
             "class",
@@ -185,8 +202,9 @@ class TestDomainIntegration:
 
     def test_domain_has_required_attributes(self) -> None:
         """Test that domain has all required attributes."""
-        env = MockBuildEnvironment()
-        domain = TypeScriptDomain(env)
+        env_mock = Mock(spec=BuildEnvironment)
+        env_mock.domaindata = {}
+        domain = TypeScriptDomain(env_mock)
 
         # Check that domain has all required class attributes
         assert hasattr(domain, "name")

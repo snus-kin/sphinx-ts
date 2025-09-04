@@ -16,7 +16,7 @@ release = "0.1.0"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    "ts_sphinx",
+    "sphinx_ts",
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
@@ -30,15 +30,24 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "furo"
+
+# Theme options
+html_theme_options = {
+    "sidebar_hide_name": False,
+    "navigation_with_keys": True,
+    "source_repository": "https://github.com/your-username/sphinx-ts/",
+    "source_branch": "main",
+    "source_directory": "docs/",
+}
 html_static_path = []
 
 # -- TypeScript Sphinx Configuration ----------------------------------------
 
 # Directories to scan for TypeScript files (relative to conf.py)
-ts_sphinx_src_dirs = ["../examples"]
+sphinx_ts_src_dirs = ["../examples"]
 
 # Patterns for files to exclude from parsing
-ts_sphinx_exclude_patterns = [
+sphinx_ts_exclude_patterns = [
     "**/*.test.ts",
     "**/*.spec.ts",
     "**/node_modules/**",
@@ -46,10 +55,10 @@ ts_sphinx_exclude_patterns = [
 ]
 
 # Whether to include private members in documentation
-ts_sphinx_include_private = False
+sphinx_ts_include_private = True
 
 # Whether to include inherited members in class documentation
-ts_sphinx_include_inherited = True
+sphinx_ts_include_inherited = True
 
 # -- Intersphinx Configuration ----------------------------------------------
 
@@ -75,15 +84,33 @@ napoleon_preprocess_types = False
 napoleon_type_aliases = None
 napoleon_attr_annotations = True
 
-# -- Additional HTML theme options ------------------------------------------
-
-html_theme_options = {
-    "source_repository": "https://github.com/your-username/ts-sphinx/",
-    "source_branch": "main",
-    "source_directory": "docs/",
-    "sidebar_hide_name": True,
-    "navigation_with_keys": True,
-    "top_of_page_button": "edit",
-}
+# -- Furo theme configuration ------------------------------------------
 
 highlight_language = "typescript"
+
+html_theme_options = {
+    "light_css_variables": {
+        "color-sidebar-background": "#f8f9fb",
+        "color-brand-primary": "#20539E",
+        "color-brand-content": "#20539E",
+        "color-foreground-primary": "#4E585F",
+        "color-background-primary": "#FEFEFE",
+        "color-background-secondary": "#F7F7F7",
+        "font-stack": (
+            "'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', "
+            "Helvetica, Arial, sans-serif"
+        ),
+    },
+    "dark_css_variables": {
+        "color-brand-primary": "#B6CBE9",
+        "color-brand-content": "#B6CBE9",
+        "color-foreground-primary": "#D5D5D5",
+        "color-background-primary": "#393939",
+        "color-background-secondary": "#434343",
+        "color-sidebar-background": "#1E1E1E",
+        "font-stack": (
+            "'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', "
+            "Helvetica, Arial, sans-serif"
+        ),
+    },
+}

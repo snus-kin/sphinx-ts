@@ -1,14 +1,16 @@
 """Tests for TypeScript auto-documentation directives."""
 
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 
-from ts_sphinx.directives import TSAutoDirective
-from ts_sphinx.parser import (
+from sphinx_ts.directives import TSAutoDirective, TSAutoEnumDirective
+from sphinx_ts.parser import (
     TSClass,
     TSDocComment,
+    TSEnum,
+    TSEnumMember,
     TSInterface,
     TSMethod,
     TSParser,
@@ -48,7 +50,7 @@ class TestTSAutoDirectiveCore:
         result = directive.format_doc_comment(doc_comment)
         assert len(result) > 0
         assert "This is a test function." in result[0]
-        assert any("Parameters:" in line for line in result)
+        assert any(".. rubric:: Parameters" in line for line in result)
         assert any("name" in line for line in result)
 
     def test_format_type_annotation(self) -> None:
@@ -94,13 +96,24 @@ class TestTSAutoDirectiveCore:
             "functions": [],
         }
 
-        result = directive.find_object_in_files("TestClass", "class")
+        # Mock the env property and its methods
+        with patch.object(
+            type(directive), "env", new_callable=PropertyMock
+        ) as mock_env_prop:
+            mock_env = Mock()
+            mock_env.docname = "test_doc"
+            mock_domain = Mock()
+            mock_domain.data = {"objects": {}}
+            mock_env.get_domain.return_value = mock_domain
+            mock_env_prop.return_value = mock_env
 
-        assert result is not None
-        assert result["object"] == mock_class
-        assert result["file_path"] == test_file
-        directive.get_source_files.assert_called_once()
-        mock_parser_instance.parse_file.assert_called_once_with(test_file)
+            result = directive.find_object_in_files("TestClass", "class")
+
+            assert result is not None
+            assert result["object"] == mock_class
+            assert result["file_path"] == test_file
+            directive.get_source_files.assert_called_once()
+            mock_parser_instance.parse_file.assert_called_once_with(test_file)
 
     def test_find_object_in_files_not_found(self) -> None:
         """Test finding objects when they don't exist."""
@@ -110,8 +123,20 @@ class TestTSAutoDirectiveCore:
         directive.parser = Mock()
         directive.get_source_files = Mock(return_value=[])
 
-        result = directive.find_object_in_files("NonexistentClass", "class")
-        assert result is None
+        # Mock the env property
+        with patch.object(
+            type(directive), "env", new_callable=PropertyMock
+        ) as mock_env_prop:
+            mock_env = Mock()
+            mock_env.docname = "test_doc"
+            mock_domain = Mock()
+            mock_domain.data = {"objects": {}}
+            mock_env.get_domain.return_value = mock_domain
+            mock_env_prop.return_value = mock_env
+
+            result = directive.find_object_in_files("NonExistent", "class")
+
+            assert result is None
 
 
 class TestTSDocCommentFormatting:
@@ -142,11 +167,11 @@ class TestTSDocCommentFormatting:
         # Check that all components are present
         content = "\n".join(result)
         assert "comprehensive test function" in content.lower()
-        assert "Parameters:" in content
+        assert ".. rubric:: Parameters" in content
         assert "first parameter" in content
         assert "second parameter" in content
-        assert "Returns:" in content or "result value" in content
-        assert "Example:" in content
+        assert ".. rubric:: Returns" in content or "result value" in content
+        assert ".. rubric:: Examples" in content
         assert "Since:" in content or "1.0.0" in content
         assert "deprecated" in content.lower()
 
@@ -174,7 +199,7 @@ class TestTSDocCommentFormatting:
         result = directive.format_doc_comment(doc_comment)
         content = "\n".join(result)
 
-        assert "Parameters:" in content
+        assert ".. rubric:: Parameters" in content
         assert "First param" in content
         assert "Second param" in content
 
@@ -327,7 +352,7 @@ class TestErrorHandling:
 
     def test_handle_missing_parser(self) -> None:
         """Test handling when parser is unavailable."""
-        with patch("ts_sphinx.parser.TSParser") as mock_parser_class:
+        with patch("sphinx_ts.parser.TSParser") as mock_parser_class:
             # Make parser initialization fail
             mock_parser_class.side_effect = ImportError(
                 "Tree-sitter not available"
@@ -352,7 +377,7 @@ class TestErrorHandling:
 
         # Mock parser that returns empty results
         with patch(
-            "ts_sphinx.directives.TSAutoDirective.get_source_files",
+            "sphinx_ts.directives.TSAutoDirective.get_source_files",
         ) as mock_get_files:
             mock_get_files.return_value = []
 
@@ -366,9 +391,9 @@ class TestErrorHandling:
 
         with (
             patch(
-                "ts_sphinx.directives.TSAutoDirective.get_source_files",
+                "sphinx_ts.directives.TSAutoDirective.get_source_files",
             ) as mock_get_files,
-            patch("ts_sphinx.parser.TSParser.parse_file") as mock_parse,
+            patch("sphinx_ts.parser.TSParser.parse_file") as mock_parse,
         ):
             mock_get_files.return_value = [Path("test.ts")]
             mock_parse.side_effect = Exception("Parse error")
@@ -433,6 +458,72 @@ class TestUtilityFunctions:
             result = directive.create_rst_content(test_input)
             # Should not raise exceptions and should return list
             assert isinstance(result, list)
+
+
+class TestTSAutoEnumDirective:
+    """Test TSAutoEnumDirective functionality."""
+
+    def test_create_enum_signature_basic(self) -> None:
+        """Test creating basic enum signature."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        # Test basic exported enum
+        enum_obj = TSEnum("MyEnum")
+        enum_obj.is_export = True
+
+        signature = directive._create_enum_signature(enum_obj)
+        assert signature == "export enum MyEnum"
+
+    def test_create_enum_signature_const(self) -> None:
+        """Test creating const enum signature."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        enum_obj = TSEnum("Direction")
+        enum_obj.is_export = True
+        enum_obj.is_const = True
+
+        signature = directive._create_enum_signature(enum_obj)
+        assert signature == "export const enum Direction"
+
+    def test_create_enum_signature_declare(self) -> None:
+        """Test creating declare enum signature."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        enum_obj = TSEnum("ExternalEnum")
+        enum_obj.is_declare = True
+
+        signature = directive._create_enum_signature(enum_obj)
+        assert signature == "declare enum ExternalEnum"
+
+    def test_create_member_signature_with_value(self) -> None:
+        """Test creating enum member signature with value."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        member = TSEnumMember("STATUS")
+        member.value = '"active"'
+
+        signature = directive._create_member_signature(member)
+        assert signature == 'STATUS = "active"'
+
+    def test_create_member_signature_without_value(self) -> None:
+        """Test creating enum member signature without value."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        member = TSEnumMember("FIRST")
+
+        signature = directive._create_member_signature(member)
+        assert signature == "FIRST"
+
+    def test_create_member_signature_computed(self) -> None:
+        """Test creating enum member signature with computed value."""
+        directive = TSAutoEnumDirective.__new__(TSAutoEnumDirective)
+
+        member = TSEnumMember("READ")
+        member.value = "1 << 0"
+        member.computed_value = True
+
+        signature = directive._create_member_signature(member)
+        assert signature == "READ = 1 << 0"
 
 
 if __name__ == "__main__":

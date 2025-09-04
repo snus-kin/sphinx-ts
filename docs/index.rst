@@ -24,12 +24,12 @@ Quick Start
    .. code-block:: python
 
       extensions = [
-          'ts_sphinx',
+          'sphinx_ts',
           # other extensions...
       ]
 
       # Configure source directories
-      ts_sphinx_src_dirs = ['src', 'lib']
+      sphinx_ts_src_dirs = ['src', 'lib']
 
 3. Use the directives in your RST files:
 
@@ -109,20 +109,20 @@ The extension supports several configuration options in your ``conf.py``:
 .. code-block:: python
 
    # Directories to scan for TypeScript files
-   ts_sphinx_src_dirs = ['src', 'lib', 'types']
+   sphinx_ts_src_dirs = ['src', 'lib', 'types']
 
    # Files to exclude from parsing
-   ts_sphinx_exclude_patterns = [
+   sphinx_ts_exclude_patterns = [
        '**/*.test.ts',
        '**/*.spec.ts',
        '**/node_modules/**'
    ]
 
    # Include private members
-   ts_sphinx_include_private = False
+   sphinx_ts_include_private = False
 
    # Include inherited members
-   ts_sphinx_include_inherited = True
+   sphinx_ts_include_inherited = True
 
 Supported JSDoc Tags
 --------------------

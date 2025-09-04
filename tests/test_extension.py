@@ -1,19 +1,19 @@
 """Tests for the main TypeScript Sphinx extension setup and integration."""
 
-from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
 
-import ts_sphinx
-from ts_sphinx import setup
-from ts_sphinx.directives import (
+import sphinx_ts
+from sphinx_ts import setup
+from sphinx_ts.directives import (
     TSAutoClassDirective,
     TSAutoDataDirective,
+    TSAutoEnumDirective,
     TSAutoInterfaceDirective,
 )
-from ts_sphinx.domain import TypeScriptDomain
-from ts_sphinx.parser import (
+from sphinx_ts.domain import TypeScriptDomain
+from sphinx_ts.parser import (
     TSClass,
     TSDocComment,
     TSInterface,
@@ -24,7 +24,7 @@ from ts_sphinx.parser import (
 )
 
 # Test constants
-EXPECTED_DIRECTIVES_COUNT = 3
+EXPECTED_DIRECTIVES_COUNT = 4
 EXPECTED_CONFIG_VALUES_COUNT = 4
 
 
@@ -39,22 +39,25 @@ class MockSphinxApp:
         self.added_directives = []
         self.added_config_values = []
 
-    def add_domain(self, domain_class: type) -> None:
+    def add_domain(self, domain: type, *, override: bool = False) -> None:
         """Mock add_domain method."""
-        self.added_domains.append(domain_class)
-        self.domains[domain_class.name] = domain_class
+        self.added_domains.append(domain)
+        self.domains[domain.name] = domain
 
-    def add_directive(self, name: str, directive_class: type) -> None:
+    def add_directive(
+        self, name: str, cls: type, *, override: bool = False
+    ) -> None:
         """Mock add_directive method."""
-        self.added_directives.append((name, directive_class))
-        self.directives[name] = directive_class
+        self.added_directives.append((name, cls))
+        self.directives[name] = cls
 
     def add_config_value(
         self,
         name: str,
-        default: Any,  # noqa: ANN401
+        default: object,
         rebuild: str,
-        types: Any = None,  # noqa: ANN401
+        types: type | list[type] | None = None,
+        description: str = "",
     ) -> None:
         """Mock add_config_value method."""
         self.added_config_values.append((name, default, rebuild, types))
@@ -66,13 +69,13 @@ class TestExtensionSetup:
 
     def test_setup_function_exists(self) -> None:
         """Test that the setup function exists and is callable."""
-        assert hasattr(ts_sphinx, "setup")
-        assert callable(ts_sphinx.setup)
+        assert hasattr(sphinx_ts, "setup")
+        assert callable(sphinx_ts.setup)
 
     def test_setup_returns_metadata(self) -> None:
         """Test that setup function returns proper metadata."""
         app = MockSphinxApp()
-        result = setup(app)
+        result = setup(app)  # type: ignore
 
         assert isinstance(result, dict)
         assert "version" in result
@@ -85,7 +88,7 @@ class TestExtensionSetup:
     def test_setup_adds_domain(self) -> None:
         """Test that setup function adds the TypeScript domain."""
         app = MockSphinxApp()
-        setup(app)
+        setup(app)  # type: ignore
 
         assert len(app.added_domains) == 1
         assert app.added_domains[0] == TypeScriptDomain
@@ -94,11 +97,12 @@ class TestExtensionSetup:
     def test_setup_adds_directives(self) -> None:
         """Test that setup function adds all required directives."""
         app = MockSphinxApp()
-        setup(app)
+        setup(app)  # type: ignore
 
         expected_directives = [
             ("ts:autoclass", TSAutoClassDirective),
             ("ts:autointerface", TSAutoInterfaceDirective),
+            ("ts:autoenum", TSAutoEnumDirective),
             ("ts:autodata", TSAutoDataDirective),
         ]
 
@@ -109,13 +113,13 @@ class TestExtensionSetup:
     def test_setup_adds_config_values(self) -> None:
         """Test that setup function adds all configuration values."""
         app = MockSphinxApp()
-        setup(app)
+        setup(app)  # type: ignore
 
         expected_configs = [
-            ("ts_sphinx_src_dirs", [], "env", [list]),
-            ("ts_sphinx_exclude_patterns", [], "env", [list]),
-            ("ts_sphinx_include_private", False, "env", [bool]),
-            ("ts_sphinx_include_inherited", True, "env", [bool]),
+            ("sphinx_ts_src_dirs", [], "env", [list]),
+            ("sphinx_ts_exclude_patterns", [], "env", [list]),
+            ("sphinx_ts_include_private", False, "env", [bool]),
+            ("sphinx_ts_include_inherited", True, "env", [bool]),
         ]
 
         assert len(app.added_config_values) == EXPECTED_CONFIG_VALUES_COUNT
@@ -142,6 +146,7 @@ class TestExtensionSetup:
             directive_names = [call[0][0] for call in directive_calls]
             assert "ts:autoclass" in directive_names
             assert "ts:autointerface" in directive_names
+            assert "ts:autoenum" in directive_names
             assert "ts:autodata" in directive_names
 
             # Verify config values were added
@@ -149,10 +154,10 @@ class TestExtensionSetup:
             assert mock_app.add_config_value.call_count == expected_config_count
             config_calls = mock_app.add_config_value.call_args_list
             config_names = [call[0][0] for call in config_calls]
-            assert "ts_sphinx_src_dirs" in config_names
-            assert "ts_sphinx_exclude_patterns" in config_names
-            assert "ts_sphinx_include_private" in config_names
-            assert "ts_sphinx_include_inherited" in config_names
+            assert "sphinx_ts_src_dirs" in config_names
+            assert "sphinx_ts_exclude_patterns" in config_names
+            assert "sphinx_ts_include_private" in config_names
+            assert "sphinx_ts_include_inherited" in config_names
 
             # Verify return value
             assert isinstance(result, dict)
@@ -164,22 +169,22 @@ class TestExtensionMetadata:
 
     def test_extension_has_version(self) -> None:
         """Test that extension has version information."""
-        assert hasattr(ts_sphinx, "__version__")
-        assert isinstance(ts_sphinx.__version__, str)
-        assert len(ts_sphinx.__version__) > 0
+        assert hasattr(sphinx_ts, "__version__")
+        assert isinstance(sphinx_ts.__version__, str)
+        assert len(sphinx_ts.__version__) > 0
 
     def test_version_consistency(self) -> None:
         """Test that version is consistent between setup and __version__."""
         app = MockSphinxApp()
-        result = setup(app)
+        result = setup(app)  # type: ignore
 
-        assert result["version"] == ts_sphinx.__version__
+        assert result["version"] == sphinx_ts.__version__
 
     def test_extension_has_docstring(self) -> None:
         """Test that extension module has proper documentation."""
-        assert ts_sphinx.__doc__ is not None
-        assert len(ts_sphinx.__doc__.strip()) > 0
-        assert "TypeScript Sphinx Extension" in ts_sphinx.__doc__
+        assert sphinx_ts.__doc__ is not None
+        assert len(sphinx_ts.__doc__.strip()) > 0
+        assert "TypeScript Sphinx Extension" in sphinx_ts.__doc__
 
 
 class TestExtensionImports:
@@ -221,13 +226,13 @@ class TestConfigurationDefaults:
     def test_default_src_dirs(self) -> None:
         """Test default source directories configuration."""
         app = MockSphinxApp()
-        setup(app)
+        setup(app)  # type: ignore
 
         src_dirs_config = next(
             (
                 config
                 for config in app.added_config_values
-                if config[0] == "ts_sphinx_src_dirs"
+                if config[0] == "sphinx_ts_src_dirs"
             ),
             None,
         )
@@ -240,13 +245,13 @@ class TestConfigurationDefaults:
     def test_default_exclude_patterns(self) -> None:
         """Test default exclude patterns configuration."""
         app = MockSphinxApp()
-        setup(app)
+        setup(app)  # type: ignore
 
         exclude_config = next(
             (
                 config
                 for config in app.added_config_values
-                if config[0] == "ts_sphinx_exclude_patterns"
+                if config[0] == "sphinx_ts_exclude_patterns"
             ),
             None,
         )
@@ -259,13 +264,13 @@ class TestConfigurationDefaults:
     def test_default_include_private(self) -> None:
         """Test default include private configuration."""
         app = MockSphinxApp()
-        setup(app)
+        setup(app)  # type: ignore
 
         private_config = next(
             (
                 config
                 for config in app.added_config_values
-                if config[0] == "ts_sphinx_include_private"
+                if config[0] == "sphinx_ts_include_private"
             ),
             None,
         )
@@ -278,13 +283,13 @@ class TestConfigurationDefaults:
     def test_default_include_inherited(self) -> None:
         """Test default include inherited configuration."""
         app = MockSphinxApp()
-        setup(app)
+        setup(app)  # type: ignore
 
         inherited_config = next(
             (
                 config
                 for config in app.added_config_values
-                if config[0] == "ts_sphinx_include_inherited"
+                if config[0] == "sphinx_ts_include_inherited"
             ),
             None,
         )
@@ -301,14 +306,14 @@ class TestExtensionCompatibility:
     def test_parallel_read_safe(self) -> None:
         """Test that extension declares parallel read safety."""
         app = MockSphinxApp()
-        result = setup(app)
+        result = setup(app)  # type: ignore
 
         assert result.get("parallel_read_safe") is True
 
     def test_parallel_write_safe(self) -> None:
         """Test that extension declares parallel write safety."""
         app = MockSphinxApp()
-        result = setup(app)
+        result = setup(app)  # type: ignore
 
         assert result.get("parallel_write_safe") is True
 
@@ -319,14 +324,14 @@ class TestExtensionErrorHandling:
     def test_setup_with_none_app(self) -> None:
         """Test setup behavior with None app (should raise AttributeError)."""
         with pytest.raises(AttributeError):
-            setup(None)
+            setup(None)  # type: ignore
 
     def test_setup_with_invalid_app(self) -> None:
         """Test setup behavior with invalid app object."""
         invalid_app = object()  # No required methods
 
         with pytest.raises(AttributeError):
-            setup(invalid_app)
+            setup(invalid_app)  # type: ignore
 
     def test_setup_handles_domain_import_error(self) -> None:
         """Test setup handles domain import errors gracefully."""
@@ -336,7 +341,7 @@ class TestExtensionErrorHandling:
         app.add_domain = Mock(side_effect=ImportError("Mock import error"))
 
         with pytest.raises(ImportError):
-            setup(app)
+            setup(app)  # type: ignore
 
     def test_setup_handles_directive_import_error(self) -> None:
         """Test setup handles directive import errors gracefully."""
@@ -346,7 +351,7 @@ class TestExtensionErrorHandling:
         app.add_directive = Mock(side_effect=ImportError("Mock import error"))
 
         with pytest.raises(ImportError):
-            setup(app)
+            setup(app)  # type: ignore
 
 
 class TestExtensionDocumentation:
@@ -354,7 +359,7 @@ class TestExtensionDocumentation:
 
     def test_module_has_proper_docstring(self) -> None:
         """Test that main module has comprehensive docstring."""
-        docstring = ts_sphinx.__doc__
+        docstring = sphinx_ts.__doc__
 
         assert docstring is not None
         assert "TypeScript Sphinx Extension" in docstring

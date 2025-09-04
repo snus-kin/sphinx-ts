@@ -15,61 +15,26 @@ repos:
       - id: check-case-conflict
       - id: check-docstring-first
       - id: check-added-large-files
-        args: ['--maxkb=500']
+        args: ["--maxkb=500"]
       - id: debug-statements
       - id: mixed-line-ending
-        args: ['--fix=lf']
+        args: ["--fix=lf"]
 
-  # Python code formatting
-  - repo: https://github.com/psf/black
-    rev: 23.12.1
+  # Python linting and formatting with ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.11
     hooks:
-      - id: black
-        language_version: python3
-        args: [--line-length=88]
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+      # Run the formatter
+      - id: ruff-format
 
-  # Import sorting
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+  # Type checking with pyright
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.404
     hooks:
-      - id: isort
-        args: [--profile=black, --multi-line=3]
-
-  # Linting
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
-    hooks:
-      - id: flake8
-        args: [--max-line-length=88, --extend-ignore=E203,W503]
-        additional_dependencies:
-          - flake8-bugbear
-          - flake8-comprehensions
-          - flake8-simplify
-
-  # Type checking
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-docutils]
-        args: [--ignore-missing-imports, --no-strict-optional]
-        files: ^src/
-
-  # Security scanning
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
-    hooks:
-      - id: bandit
-        args: [-r, src/]
-        exclude: ^tests/
-
-  # Documentation
-  - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.3.0
-    hooks:
-      - id: pydocstyle
-        args: [--convention=google, --add-ignore=D100,D101,D102,D103,D104,D105,D107]
-        files: ^src/
+      - id: pyright
 
   # Markdown formatting
   - repo: https://github.com/igorshubovych/markdownlint-cli
@@ -90,7 +55,7 @@ repos:
     rev: v2.2.6
     hooks:
       - id: codespell
-        args: [--ignore-words-list=hist,nd,te,tha]
+        args: [--ignore-words-list=hist, nd, te, tha]
         exclude: >
           (?x)^(
             .*\.po|
@@ -98,37 +63,3 @@ repos:
             .*\.lock|
             .*/node_modules/.*
           )$
-
-  # Local hooks for project-specific checks
-  - repo: local
-    hooks:
-      - id: pytest-check
-        name: pytest-check
-        entry: pytest
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [manual]
-
-      - id: test-imports
-        name: test-imports
-        entry: python -c "import ts_sphinx; print('Import successful')"
-        language: system
-        pass_filenames: false
-        stages: [manual]
-
-# Configuration
-default_stages: [commit]
-fail_fast: false
-minimum_pre_commit_version: '2.20.0'
-
-# Skip certain hooks for specific file types
-exclude: |
-  (?x)^(
-    examples/.*\.ts$|
-    tests/fixtures/.*|
-    docs/_build/.*|
-    \.venv/.*|
-    venv/.*|
-    __pycache__/.*
-  )$

@@ -11,6 +11,7 @@ from sphinx.application import Sphinx
 from .directives import (
     TSAutoClassDirective,
     TSAutoDataDirective,
+    TSAutoEnumDirective,
     TSAutoInterfaceDirective,
 )
 from .domain import TypeScriptDomain
@@ -24,16 +25,17 @@ def setup(app: Sphinx) -> dict[str, Any]:
     # Add directives
     app.add_directive("ts:autoclass", TSAutoClassDirective)
     app.add_directive("ts:autointerface", TSAutoInterfaceDirective)
+    app.add_directive("ts:autoenum", TSAutoEnumDirective)
     app.add_directive("ts:autodata", TSAutoDataDirective)
 
     # Add configuration values
-    app.add_config_value("ts_sphinx_src_dirs", [], "env", [list])
-    app.add_config_value("ts_sphinx_exclude_patterns", [], "env", [list])
+    app.add_config_value("sphinx_ts_src_dirs", [], "env", [list])
+    app.add_config_value("sphinx_ts_exclude_patterns", [], "env", [list])
     app.add_config_value(
-        "ts_sphinx_include_private", default=False, rebuild="env", types=[bool]
+        "sphinx_ts_include_private", default=False, rebuild="env", types=[bool]
     )
     app.add_config_value(
-        "ts_sphinx_include_inherited", default=True, rebuild="env", types=[bool]
+        "sphinx_ts_include_inherited", default=True, rebuild="env", types=[bool]
     )
 
     return {
