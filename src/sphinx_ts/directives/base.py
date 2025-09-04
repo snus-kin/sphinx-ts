@@ -87,13 +87,19 @@ class TSAutoDirective(SphinxDirective):
                     "variable": "variables",
                     "function": "functions",
                     "enum": "enums",
+                    "type": "types",
                 }
                 plural_type = type_mapping.get(object_type, object_type + "s")
                 objects = parsed_data.get(plural_type, [])
 
                 for obj in objects:
-                    if hasattr(obj, "name"):
-                        if obj.name == object_name:
+                    # Handle both object-style and dict-style objects
+                    if isinstance(obj, dict):
+                        obj_name = obj.get("name")
+                    else:
+                        obj_name = getattr(obj, "name", None)
+                    if obj_name:
+                        if obj_name == object_name:
                             obj_data = {
                                 "object": obj,
                                 "file_path": file_path,
@@ -101,10 +107,10 @@ class TSAutoDirective(SphinxDirective):
                             }
                             # Register this object with the domain for cross-ref
                             self._register_object_with_domain(
-                                object_type, obj.name, self.env.docname
+                                object_type, obj_name, self.env.docname
                             )
                             return obj_data
-                        if obj.name.lower() == object_name.lower():
+                        if obj_name.lower() == object_name.lower():
                             # Try case-insensitive match if exact match fails
                             obj_data = {
                                 "object": obj,
@@ -113,7 +119,7 @@ class TSAutoDirective(SphinxDirective):
                             }
                             # Register this object with the domain for cross-ref
                             self._register_object_with_domain(
-                                object_type, obj.name, self.env.docname
+                                object_type, obj_name, self.env.docname
                             )
                             return obj_data
 
@@ -333,7 +339,26 @@ class TSAutoDirective(SphinxDirective):
 
         # Clean up the type annotation
         cleaned = type_annotation.strip()
-        return cleaned.removeprefix(":").strip()
+        cleaned = cleaned.removeprefix(":").strip()
+
+        # Format union types to have consistent spacing
+        if "|" in cleaned:
+            # Split on union operators and clean each part
+            union_parts = []
+            parts = cleaned.split("|")
+            for part in parts:
+                # Clean up excessive whitespace and newlines
+                clean_part = " ".join(part.split())
+                # Only add non-empty parts (handles leading | characters)
+                if clean_part:
+                    union_parts.append(clean_part)
+            # Join with consistent spacing
+            cleaned = " | ".join(union_parts)
+        else:
+            # For non-union types, just normalize whitespace
+            cleaned = " ".join(cleaned.split())
+
+        return cleaned
 
     def format_optional_parameter(
         self,
@@ -544,7 +569,7 @@ class TSAutoDirective(SphinxDirective):
 
         # Add method name
         name = title_override or method.name
-        sig += addnodes.desc_name("", name)
+        sig += addnodes.desc_sig_name("", name)
 
         # Add method parameters
         paramlist = addnodes.desc_parameterlist()
@@ -699,7 +724,7 @@ class TSAutoDirective(SphinxDirective):
         desc += sig
 
         # Add property name
-        sig += addnodes.desc_name("", prop.name)
+        sig += addnodes.desc_sig_name("", prop.name)
 
         # Add optional marker for properties if needed
         if hasattr(prop, "is_optional") and prop.is_optional:
@@ -709,7 +734,7 @@ class TSAutoDirective(SphinxDirective):
         if prop.type_annotation:
             sig += nodes.Text(": ")
             formatted_type = self.format_parameter_type(prop.type_annotation)
-            sig += addnodes.desc_type("", formatted_type)
+            sig += nodes.emphasis("", formatted_type)
 
         # Add content container
         content = addnodes.desc_content()

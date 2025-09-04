@@ -39,6 +39,11 @@ class TSAutoDataDirective(TSAutoDirective):
             )
             if function_result:
                 return self._process_function(function_result, variable_name)
+
+            # If not found as a function, try to find it as a type alias
+            type_result = self._process_object_common(variable_name, "type")
+            if type_result:
+                return self._process_type_alias(type_result, variable_name)
             return []
 
         ts_variable: TSVariable = result["object"]
@@ -353,7 +358,7 @@ class TSAutoDataDirective(TSAutoDirective):
         if ts_function.return_type:
             sig += nodes.Text(": ")
             formatted_type = self.format_parameter_type(ts_function.return_type)
-            sig += addnodes.desc_type("", formatted_type)
+            sig += nodes.emphasis("", formatted_type)
 
         # Add content container
         content = addnodes.desc_content()
@@ -433,3 +438,62 @@ class TSAutoDataDirective(TSAutoDirective):
         self._add_examples_section(content, ts_function.doc_comment)
 
         return [func_node]
+
+    def _process_type_alias(
+        self, result: dict, type_alias_name: str
+    ) -> list[nodes.Node]:
+        """Process a TypeScript type alias."""
+        type_alias = result["object"]
+
+        # Create the main type alias directive
+        type_node = nodes.section(ids=[f"type-{type_alias_name}"])
+
+        # Create type alias signature for the title
+        signature = f"type {type_alias_name}"
+        if type_alias.get("type_parameters"):
+            signature += f"<{', '.join(type_alias['type_parameters'])}>"
+
+        # Format the type definition with proper union handling
+        type_def = type_alias.get("type_definition", "")
+        if type_def:
+            formatted_type_def = self.format_type_annotation(type_def)
+            signature += f" = {formatted_type_def}"
+
+        # Add type alias title
+        title = nodes.title(text=signature)
+        type_node.append(title)
+
+        # Add type alias kind as a subtitle
+        kind_para = nodes.paragraph(classes=["ts-type-alias-kind"])
+        kind_para.append(nodes.emphasis(text="type alias"))
+        type_node.append(kind_para)
+
+        # Add type alias documentation
+        doc_lines = []
+        doc_comment = type_alias.get("doc_comment")
+        if (
+            doc_comment
+            and hasattr(doc_comment, "description")
+            and doc_comment.description
+        ):
+            doc_lines.extend(doc_comment.description.split("\n"))
+            doc_lines.append("")
+
+            # Add examples if present
+            if hasattr(doc_comment, "examples") and doc_comment.examples:
+                doc_lines.extend(
+                    [".. rubric:: Examples", "   :class: ts-examples", ""]
+                )
+                doc_lines.append(".. code-block:: typescript")
+                doc_lines.append("")
+                for example in doc_comment.examples:
+                    doc_lines.extend(
+                        f"   {line}" for line in example.split("\n")
+                    )
+                doc_lines.append("")
+
+        if doc_lines:
+            content = self.create_rst_content(doc_lines)
+            type_node.extend(content)
+
+        return [type_node]

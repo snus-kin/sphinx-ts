@@ -63,7 +63,8 @@ class TSParser:
             "variables": [],
             "functions": [],
             "enums": [],
-            "file_path": str(file_path),
+            "types": [],
+            "file_path": file_path,
         }
 
         if tree and tree.root_node:
@@ -86,6 +87,11 @@ class TSParser:
             interface_obj = self._parse_interface(node, source_code)
             if interface_obj:
                 result["interfaces"].append(interface_obj)
+
+        elif node.type == "type_alias_declaration":
+            type_alias_obj = self._parse_type_alias(node, source_code)
+            if type_alias_obj:
+                result["types"].append(type_alias_obj)
 
         elif node.type == "enum_declaration":
             enum_obj = self._parse_enum(node, source_code)
@@ -125,6 +131,10 @@ class TSParser:
                     enum_obj = self._parse_enum(child, source_code)
                     if enum_obj:
                         result["enums"].append(enum_obj)
+                elif child.type == "type_alias_declaration":
+                    type_alias_obj = self._parse_type_alias(child, source_code)
+                    if type_alias_obj:
+                        result["types"].append(type_alias_obj)
 
         # Recursively traverse child nodes
         # Skip children if this is an export statement that we've already
@@ -626,3 +636,43 @@ class TSParser:
                 parameters.append(param_info)
 
         return parameters
+
+    def _parse_type_alias(
+        self,
+        node: tree_sitter.Node,
+        source_code: bytes,
+    ) -> dict[str, Any] | None:
+        """Parse a TypeScript type alias declaration."""
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            return None
+
+        type_alias_name = self._get_node_text(name_node, source_code)
+
+        # Get the type definition
+        type_node = node.child_by_field_name("value")
+        type_definition = ""
+        if type_node:
+            type_definition = self._get_node_text(type_node, source_code)
+
+        # Get type parameters if present
+        type_parameters_node = node.child_by_field_name("type_parameters")
+        type_parameters = []
+        if type_parameters_node:
+            for child in type_parameters_node.children:
+                if child.type == "type_identifier":
+                    type_parameters.append(
+                        self._get_node_text(child, source_code)
+                    )
+
+        # Find associated documentation comment
+        doc_comment = self._find_doc_comment(node, source_code)
+
+        return {
+            "name": type_alias_name,
+            "type_definition": type_definition,
+            "type_parameters": type_parameters,
+            "doc_comment": doc_comment,
+            "start_line": node.start_point[0] + 1,
+            "end_line": node.end_point[0] + 1,
+        }

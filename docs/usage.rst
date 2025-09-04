@@ -161,7 +161,7 @@ Here's a complete example showing how to document a TypeScript project:
 Directory Structure
 ~~~~~~~~~~~~~~~~~~
 
-.. code-block::
+.. code-block:: rst
 
    my-project/
    ├── docs/

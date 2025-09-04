@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from docutils.nodes import Node, Text, inline
+from docutils import nodes
+from docutils.nodes import Text, inline
 from docutils.parsers.rst import directives
 from sphinx import addnodes
 from sphinx.directives import ObjectDescription
@@ -22,7 +23,7 @@ from sphinx.util.nodes import make_refnode
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
-    from docutils.nodes import Element, Node, reference, system_message
+    from docutils.nodes import Node, reference, system_message
     from sphinx.builders import Builder
     from sphinx.environment import BuildEnvironment
 
@@ -33,6 +34,110 @@ OBJDATA_NOINDEX_INDEX = 2
 OBJDATA_TUPLE_LENGTH = 3
 
 logger = logging.getLogger(__name__)
+
+
+def parse_parameters_from_signature(sig: str) -> list[dict[str, str]]:
+    """Parse parameters from a TypeScript function signature.
+
+    Args:
+        sig: The function signature string
+
+    Returns:
+        List of parameter dictionaries with name, type, optional, default keys
+
+    """
+    parameters = []
+
+    # Extract parameter list from signature
+    if "(" not in sig:
+        return parameters
+
+    start = sig.index("(") + 1
+    end = sig.rfind(")")
+    if end == -1:
+        return parameters
+
+    param_str = sig[start:end].strip()
+    if not param_str:
+        return parameters
+
+    # Simple parameter splitting - handles basic cases
+    # This is a simplified parser that handles most common cases
+    depth = 0
+    current_param = ""
+
+    for char in param_str:
+        if char in "({[<":
+            depth += 1
+        elif char in ")}]>":
+            depth -= 1
+        elif char == "," and depth == 0:
+            # End of parameter
+            if current_param.strip():
+                parameters.append(
+                    _parse_single_parameter(current_param.strip())
+                )
+            current_param = ""
+            continue
+
+        current_param += char
+
+    # Add the last parameter
+    if current_param.strip():
+        parameters.append(_parse_single_parameter(current_param.strip()))
+
+    return parameters
+
+
+def _parse_single_parameter(param: str) -> dict[str, str]:
+    """Parse a single parameter string into components.
+
+    Args:
+        param: Single parameter string like "name: string" or "value?: number"
+
+    Returns:
+        Dictionary with name, type, optional, default keys
+
+    """
+    result = {"name": "", "type": "", "optional": "false", "default": ""}
+
+    # Handle default values first
+    if "=" in param:
+        param, default = param.rsplit("=", 1)
+        result["default"] = default.strip()
+        param = param.strip()
+
+    # Handle optional parameters
+    if param.endswith("?"):
+        result["optional"] = "true"
+        param = param[:-1].strip()
+
+    # Split name and type
+    if ":" in param:
+        name, type_part = param.split(":", 1)
+        result["name"] = name.strip()
+        type_str = type_part.strip()
+
+        # Format union types properly (same logic as format_type_annotation)
+        if "|" in type_str:
+            # Clean up union type spacing
+            union_parts = []
+            parts = type_str.split("|")
+            for part in parts:
+                clean_part = " ".join(part.split())
+                # Only add non-empty parts (handles leading | characters)
+                if clean_part:
+                    union_parts.append(clean_part)
+            type_str = " | ".join(union_parts)
+        else:
+            # Normalize whitespace for non-union types
+            type_str = " ".join(type_str.split())
+
+        result["type"] = type_str
+    else:
+        result["name"] = param.strip()
+
+    return result
 
 
 class TypeScriptObject(ObjectDescription[str]):
@@ -52,7 +157,7 @@ class TypeScriptObject(ObjectDescription[str]):
         """Return True if this object needs an argument list."""
         return False
 
-    def handle_signature(self, sig: str, signode: Element) -> str:
+    def handle_signature(self, sig: str, signode: nodes.Element) -> str:
         """Transform a signature into RST nodes."""
         return sig
 
@@ -60,7 +165,7 @@ class TypeScriptObject(ObjectDescription[str]):
         self,
         name: str,
         sig: str,
-        signode: Element,
+        signode: nodes.Element,
         *,
         noindex: bool = False,
     ) -> None:
@@ -101,7 +206,7 @@ class TSClass(TypeScriptObject):
         """Return the signature prefix."""
         return "class "
 
-    def handle_signature(self, sig: str, signode: Element) -> str:
+    def handle_signature(self, sig: str, signode: nodes.Element) -> str:
         """Parse the signature and return the class name."""
         signode.append(addnodes.desc_annotation("class ", "class "))
 
@@ -137,7 +242,7 @@ class TSInterface(TypeScriptObject):
         """Return the signature prefix."""
         return "interface "
 
-    def handle_signature(self, sig: str, signode: Element) -> str:
+    def handle_signature(self, sig: str, signode: nodes.Element) -> str:
         """Parse the signature and return the interface name."""
         signode.append(addnodes.desc_annotation("interface ", "interface "))
 
@@ -175,29 +280,38 @@ class TSMethod(TypeScriptObject):
         """Return True if this object needs an argument list."""
         return True
 
-    def handle_signature(self, sig: str, signode: Element) -> str:
+    def handle_signature(self, sig: str, signode: nodes.Element) -> str:
         """Parse the signature and return the method name."""
-        # Simple parsing - real implementation would use more sophisticated
-        if "(" in sig:
-            method_name = sig[: sig.index("(")]
-            args_part = sig[sig.index("(") :]
-        else:
-            method_name = sig
-            args_part = "()"
+        method_name = sig[: sig.index("(")] if "(" in sig else sig
 
         signode.append(addnodes.desc_name(method_name, method_name))
-        signode.append(addnodes.desc_parameterlist())
 
-        # Parse arguments
-        if args_part != "()":
-            # This is simplified - real implementation would parse properly
-            param_node = addnodes.desc_parameter(
-                args_part[1:-1], args_part[1:-1]
-            )
-            # Cast to proper node type for append operation
-            param_list = cast("addnodes.desc_parameterlist", signode[-1])
+        # Parse and format parameters properly
+        parameters = parse_parameters_from_signature(sig)
+        param_list = addnodes.desc_parameterlist()
+
+        for param in parameters:
+            param_node = addnodes.desc_parameter()
+
+            # Add parameter name
+            param_node.append(addnodes.desc_sig_name("", param["name"]))
+
+            # Add optional marker if needed
+            if param["optional"] == "true" and not param["default"]:
+                param_node.append(nodes.Text("?"))
+
+            # Add type annotation
+            if param["type"]:
+                param_node.append(nodes.Text(": "))
+                param_node.append(addnodes.desc_sig_name("", param["type"]))
+
+            # Add default value
+            if param["default"]:
+                param_node.append(nodes.Text(f" = {param['default']}"))
+
             param_list.append(param_node)
 
+        signode.append(param_list)
         return method_name
 
 
@@ -212,14 +326,15 @@ class TSProperty(TypeScriptObject):
         Field("deprecated", label=_("Deprecated"), names=("deprecated",)),
     ]
 
-    def handle_signature(self, sig: str, signode: Element) -> str:
+    def handle_signature(self, sig: str, signode: nodes.Element) -> str:
         """Parse the signature and return the property name."""
         # Handle type annotation
         if ":" in sig:
             prop_name = sig[: sig.index(":")].strip()
             type_part = sig[sig.index(":") :].strip()
             signode.append(addnodes.desc_name(prop_name, prop_name))
-            signode.append(addnodes.desc_annotation(type_part, type_part))
+            type_annotation = addnodes.desc_annotation(type_part, type_part)
+            signode.append(type_annotation)
         else:
             signode.append(addnodes.desc_name(sig, sig))
 
@@ -252,29 +367,40 @@ class TSFunction(TypeScriptObject):
         """Return True if this object needs an argument list."""
         return True
 
-    def handle_signature(self, sig: str, signode: Element) -> str:
+    def handle_signature(self, sig: str, signode: nodes.Element) -> str:
         """Parse the signature and return the function name."""
         signode.append(addnodes.desc_annotation("function ", "function "))
 
-        if "(" in sig:
-            func_name = sig[: sig.index("(")]
-            args_part = sig[sig.index("(") :]
-        else:
-            func_name = sig
-            args_part = "()"
+        func_name = sig[: sig.index("(")] if "(" in sig else sig
 
         signode.append(addnodes.desc_name(func_name, func_name))
-        signode.append(addnodes.desc_parameterlist())
 
-        # Parse arguments (simplified)
-        if args_part != "()":
-            param_node = addnodes.desc_parameter(
-                args_part[1:-1], args_part[1:-1]
-            )
-            # Cast to proper node type for append operation
-            param_list = cast("addnodes.desc_parameterlist", signode[-1])
+        # Parse and format parameters properly
+        parameters = parse_parameters_from_signature(sig)
+        param_list = addnodes.desc_parameterlist()
+
+        for param in parameters:
+            param_node = addnodes.desc_parameter()
+
+            # Add parameter name
+            param_node.append(addnodes.desc_sig_name("", param["name"]))
+
+            # Add optional marker if needed
+            if param["optional"] == "true" and not param["default"]:
+                param_node.append(nodes.Text("?"))
+
+            # Add type annotation
+            if param["type"]:
+                param_node.append(nodes.Text(": "))
+                param_node.append(addnodes.desc_sig_name("", param["type"]))
+
+            # Add default value
+            if param["default"]:
+                param_node.append(nodes.Text(f" = {param['default']}"))
+
             param_list.append(param_node)
 
+        signode.append(param_list)
         return func_name
 
 
@@ -294,7 +420,7 @@ class TSVariable(TypeScriptObject):
         # Could be 'const', 'let', or 'var'
         return ""
 
-    def handle_signature(self, sig: str, signode: Element) -> str:
+    def handle_signature(self, sig: str, signode: nodes.Element) -> str:
         """Parse the signature and return the variable name."""
         # Handle type annotation and value
         parts = sig.split("=", 1)
@@ -304,7 +430,8 @@ class TSVariable(TypeScriptObject):
             var_name = name_and_type[: name_and_type.index(":")].strip()
             type_part = name_and_type[name_and_type.index(":") :].strip()
             signode.append(addnodes.desc_name(var_name, var_name))
-            signode.append(addnodes.desc_annotation(type_part, type_part))
+            type_annotation = addnodes.desc_annotation(type_part, type_part)
+            signode.append(type_annotation)
         else:
             signode.append(addnodes.desc_name(name_and_type, name_and_type))
 
@@ -325,7 +452,7 @@ class TSXRefRole(XRefRole):
     def process_link(
         self,
         env: BuildEnvironment,
-        refnode: Element,
+        refnode: nodes.Element,
         has_explicit_title: bool,
         title: str,
         target: str,
@@ -360,7 +487,7 @@ class TSEnum(TypeScriptObject):
         """Return the signature prefix."""
         return "enum "
 
-    def handle_signature(self, sig: str, signode: Element) -> str:
+    def handle_signature(self, sig: str, signode: nodes.Element) -> str:
         """Parse the signature and return the enum name."""
         signode.append(addnodes.desc_annotation("enum ", "enum "))
 
@@ -391,6 +518,7 @@ class TypeScriptDomain(Domain):
         "property": ObjType("property", "prop", "property", "obj"),
         "function": ObjType("function", "func", "function", "obj"),
         "variable": ObjType("variable", "var", "variable", "obj"),
+        "type": ObjType("type", "type", "type", "obj"),
     }
 
     directives = {
@@ -401,6 +529,7 @@ class TypeScriptDomain(Domain):
         "property": TSProperty,
         "function": TSFunction,
         "variable": TSVariable,
+        "type": TSVariable,  # Type aliases use same directive as variables
     }
 
     roles = {
@@ -411,6 +540,7 @@ class TypeScriptDomain(Domain):
         "prop": TSXRefRole(),
         "func": TSXRefRole(),
         "var": TSXRefRole(),
+        "type": TSXRefRole(),
         "obj": TSXRefRole(),
         "param": TSParamRole(),
     }
@@ -451,8 +581,8 @@ class TypeScriptDomain(Domain):
         builder: Builder,
         typ: str,
         target: str,
-        node: Element,
-        contnode: Element,
+        node: nodes.Element,
+        contnode: nodes.Element,
     ) -> reference | None:
         """Resolve cross-references."""
         logger = logging.getLogger(__name__)
@@ -557,8 +687,8 @@ class TypeScriptDomain(Domain):
         fromdocname: str,
         builder: Builder,
         target: str,
-        node: Element,
-        contnode: Element,
+        node: nodes.Element,
+        contnode: nodes.Element,
     ) -> list[tuple[str, reference]]:
         """Resolve any cross-reference (used for 'any' role)."""
         results = []
@@ -616,7 +746,7 @@ class TypeScriptDomain(Domain):
         objects_list.sort(key=lambda x: x[0])
         yield from objects_list
 
-    def get_full_qualified_name(self, node: Element) -> str | None:
+    def get_full_qualified_name(self, node: nodes.Element) -> str | None:
         """Get the fully qualified name of a node."""
         # This would need to be implemented based on the node structure
         return None
@@ -626,7 +756,7 @@ class TypeScriptDomain(Domain):
         obj_type: str,
         name: str,
         _target: str,
-        _location: Element | None = None,
+        _location: nodes.Element | None = None,
         *,
         noindex: bool = False,
     ) -> None:
