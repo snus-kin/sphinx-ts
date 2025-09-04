@@ -111,6 +111,7 @@ The extension provides several roles for cross-referencing:
 :ts:prop:`MyClass.myProperty`
 ```
 
+
 ## JSDoc Support
 
 The extension supports standard JSDoc tags:
