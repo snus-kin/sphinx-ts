@@ -46,7 +46,7 @@ Add the extension to your Sphinx ``conf.py``:
    sphinx_ts_include_inherited = True
 
 Configuration Options
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 .. confval:: sphinx_ts_src_dirs
 
@@ -77,7 +77,7 @@ Configuration Options
    **Default:** ``True``
 
 Available Directives
--------------------
+~~~~~~~~~~~~~~~~~~~~
 
 The extension provides three main auto-documentation directives:
 
@@ -127,12 +127,12 @@ Automatically documents TypeScript variables and constants:
    .. ts:autodata:: MATH_CONSTANTS
 
 Cross-References
----------------
+~~~~~~~~~~~~~~~~
 
 The extension provides several roles for cross-referencing TypeScript objects:
 
 Basic References
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 .. code-block:: rst
 
@@ -144,7 +144,7 @@ Basic References
    :ts:var:`DEFAULT_CONFIG`
 
 Generic Reference
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 Use the generic ``:ts:obj:`` role when you're not sure of the object type:
 
@@ -154,12 +154,12 @@ Use the generic ``:ts:obj:`` role when you're not sure of the object type:
    :ts:obj:`CalculatorConfig`
 
 Complete Example
----------------
+~~~~~~~~~~~~~~~~
 
 Here's a complete example showing how to document a TypeScript project:
 
 Directory Structure
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: rst
 
@@ -173,7 +173,7 @@ Directory Structure
        └── types.ts
 
 TypeScript Source (src/calculator.ts)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: typescript
 
@@ -264,7 +264,7 @@ TypeScript Source (src/calculator.ts)
    };
 
 Documentation File (docs/api.rst)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: rst
 
@@ -308,10 +308,10 @@ Documentation File (docs/api.rst)
    or properties like :ts:prop:`Calculator.memory`.
 
 Advanced Usage
--------------
+~~~~~~~~~~~~~~
 
 Custom Member Selection
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 You can control which members are documented:
 
@@ -322,7 +322,7 @@ You can control which members are documented:
       :exclude-members: _private_method
 
 Member Ordering
-~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 Control the order of documented members:
 
@@ -333,7 +333,7 @@ Control the order of documented members:
       :member-order: alphabetical
 
 Include Private Members
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: rst
 
@@ -342,7 +342,7 @@ Include Private Members
       :private-members:
 
 Multiple Source Directories
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Configure multiple source directories in ``conf.py``:
 
@@ -356,7 +356,7 @@ Configure multiple source directories in ``conf.py``:
    ]
 
 Exclude Patterns
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 Exclude specific files or patterns:
 
@@ -371,12 +371,12 @@ Exclude specific files or patterns:
    ]
 
 JSDoc Tag Support
-----------------
+~~~~~~~~~~~~~~~~~
 
 The extension recognizes and renders these JSDoc tags:
 
 Standard Tags
-~~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 * ``@param {type} name description`` - Parameter documentation
 * ``@returns description`` or ``@return description`` - Return value documentation
@@ -386,7 +386,7 @@ Standard Tags
 * ``@deprecated message`` - Deprecation notices
 
 Custom Tags
-~~~~~~~~~~
+~~~~~~~~~~~
 
 Custom JSDoc tags are preserved and rendered:
 
@@ -402,10 +402,10 @@ Custom JSDoc tags are preserved and rendered:
    function specialFunction() {}
 
 Troubleshooting
---------------
+~~~~~~~~~~~~~~~
 
 Tree-sitter Not Found
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 If you get import errors related to Tree-sitter:
 
@@ -438,7 +438,7 @@ Check that:
 4. TypeScript syntax is valid
 
 Performance Tips
----------------
+~~~~~~~~~~~~~~~~
 
 For large codebases:
 

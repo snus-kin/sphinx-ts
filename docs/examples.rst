@@ -38,7 +38,7 @@ Default Configuration
 .. ts:autodata:: DEFAULT_CONFIG
 
 Mathematical Constants
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. ts:autodata:: MATH_CONSTANTS
 
@@ -46,12 +46,12 @@ Utility Functions
 -----------------
 
 Safe Integer Check
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 .. ts:autodata:: isSafeInteger
 
 Number Formatting
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 .. ts:autodata:: formatNumber
 
@@ -59,7 +59,7 @@ Error Classes
 -------------
 
 Calculation Error
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 .. ts:autoclass:: CalculationError
 
@@ -69,17 +69,17 @@ Cross-Reference Examples
 Here are examples of cross-referencing TypeScript objects:
 
 Class References
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 You can reference the main :ts:class:`Calculator` class, or the error class :ts:class:`CalculationError`.
 
 Interface References
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 Reference interfaces like :ts:interface:`CalculatorConfig` or :ts:interface:`Operation`.
 
 Method References
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 Reference specific methods:
 
@@ -92,12 +92,12 @@ Reference specific methods:
 - :ts:meth:`Calculator.chain` - Chain operations method
 
 Property References
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 Reference properties like :ts:meth:`Calculator.memory`.
 
 Function and Variable References
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Reference utility functions and constants:
 
@@ -107,7 +107,7 @@ Reference utility functions and constants:
 - :ts:var:`MATH_CONSTANTS` - Mathematical constants
 
 Generic References
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 You can also use the generic :ts:obj:`Calculator` reference when you're not sure of the object type.
 
@@ -115,7 +115,7 @@ Usage Examples
 --------------
 
 Basic Calculator Usage
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 Here's how to use the :ts:class:`Calculator` with the :ts:var:`DEFAULT_CONFIG`:
 
@@ -137,7 +137,7 @@ Here's how to use the :ts:class:`Calculator` with the :ts:var:`DEFAULT_CONFIG`:
    const root = calc.sqrt(16);          // 4
 
 Custom Configuration
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 You can customize the calculator behavior using :ts:interface:`CalculatorConfig`:
 
@@ -152,7 +152,7 @@ You can customize the calculator behavior using :ts:interface:`CalculatorConfig`
    const calc = new Calculator(customConfig);
 
 Chain Operations
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 Use the :ts:meth:`Calculator.chain` method for complex calculations:
 
@@ -167,7 +167,7 @@ Use the :ts:meth:`Calculator.chain` method for complex calculations:
    const result = calc.chain(operations); // ((0 + 10) * 2) - 5 = 15
 
 Error Handling
-~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 
 The calculator throws :ts:class:`CalculationError` for invalid operations:
 
@@ -183,7 +183,7 @@ The calculator throws :ts:class:`CalculationError` for invalid operations:
    }
 
 Working with Constants
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 Use the predefined mathematical constants from :ts:var:`MATH_CONSTANTS`:
 
@@ -196,7 +196,7 @@ Use the predefined mathematical constants from :ts:var:`MATH_CONSTANTS`:
    const diagonal = side * MATH_CONSTANTS.SQRT2;
 
 Utility Functions
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 Use the utility functions for validation and formatting:
 
@@ -214,12 +214,12 @@ Use the utility functions for validation and formatting:
    console.log(`Formatted: ${formatted}`);
 
 Generated Documentation Features
--------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The generated documentation includes:
 
 Type Information
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 - Parameter types and default values
 - Return types
@@ -228,7 +228,7 @@ Type Information
 - Union and intersection types
 
 JSDoc Integration
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 - Full JSDoc comment parsing
 - Parameter descriptions
@@ -238,7 +238,7 @@ JSDoc Integration
 - Deprecation notices
 
 Cross-References
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 - Automatic linking between related types
 - Method and property references
@@ -246,7 +246,7 @@ Cross-References
 - Interface implementations
 
 Source Information
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 - Source file references
 - Line number information (when available)
