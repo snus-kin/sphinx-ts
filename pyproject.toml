@@ -1,6 +1,6 @@
 [project]
 name = "sphinx-ts"
-version = "0.1.0"
+version = "0.1.1"
 description = "Sphinx extension for TypeScript documentation using Tree-sitter"
 readme = "README.md"
 license = { text = "MIT" }
