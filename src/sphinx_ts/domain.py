@@ -689,7 +689,7 @@ class TypeScriptDomain(Domain):
         target: str,
         node: nodes.Element,
         contnode: nodes.Element,
-    ) -> list[tuple[str, nodes.Element]]:
+    ) -> list[tuple[str, reference]]:
         """Resolve any cross-reference (used for 'any' role)."""
         results = []
 
