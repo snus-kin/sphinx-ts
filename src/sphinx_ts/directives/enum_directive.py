@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 
 from docutils import nodes
 from docutils.statemachine import StringList
-from docutils.utils import SystemMessage
 from sphinx import addnodes
 from sphinx.util import logging
 
@@ -172,12 +171,11 @@ class TSAutoEnumDirective(TSAutoDirective):
 
         content_nodes.append(members_section)
 
-    def _format_enum_member(self, member: TSEnumMember, enum_name: str) -> list[nodes.Node]:
+    def _format_enum_member(
+        self, member: TSEnumMember, enum_name: str
+    ) -> list[nodes.Node]:
         """Format an enum member."""
         member_nodes = []
-
-        # Create member signature
-        member_signature = self._create_member_signature(member)
 
         # Create the main description node
         desc_node = addnodes.desc(
@@ -199,7 +197,9 @@ class TSAutoEnumDirective(TSAutoDirective):
 
         # Add value if present
         if member.value is not None:
-            sig_node += addnodes.desc_annotation(f" = {member.value}", f" = {member.value}")
+            sig_node += addnodes.desc_annotation(
+                f" = {member.value}", f" = {member.value}"
+            )
 
         desc_node += sig_node
 
@@ -209,11 +209,14 @@ class TSAutoEnumDirective(TSAutoDirective):
         if member.doc_comment and member.doc_comment.description:
             try:
                 # Format the doc comment as RST and parse it into proper nodes
-                formatted_rst_lines = self.format_doc_comment(member.doc_comment)
+                formatted_rst_lines = self.format_doc_comment(
+                    member.doc_comment
+                )
                 if formatted_rst_lines:
                     # Filter out complex directives that might cause issues
                     filtered_lines = [
-                        line for line in formatted_rst_lines
+                        line
+                        for line in formatted_rst_lines
                         if not line.strip().startswith(".. ")
                     ]
 
@@ -221,7 +224,9 @@ class TSAutoEnumDirective(TSAutoDirective):
                         # Use Sphinx's content parsing mechanism
                         content = StringList(filtered_lines)
                         node = nodes.Element()
-                        self.state.nested_parse(content, self.content_offset, node)
+                        self.state.nested_parse(
+                            content, self.content_offset, node
+                        )
 
                         # Add the parsed content to member content
                         for child in node.children:
