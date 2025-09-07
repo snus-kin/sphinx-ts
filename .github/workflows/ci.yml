@@ -1,4 +1,6 @@
 name: CI/CD Pipeline
+permissions:
+  contents: read
 
 on:
   push:
@@ -52,6 +54,8 @@ jobs:
   build:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
