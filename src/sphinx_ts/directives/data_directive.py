@@ -6,12 +6,13 @@ variables, constants, and functions.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from docutils import nodes
 from docutils.statemachine import StringList
 from sphinx import addnodes
-from sphinx.util import logging
+from sphinx.util import logging as sphinx_logging
 
 from sphinx_ts.parser import TSValueParser
 
@@ -20,7 +21,7 @@ from .base import TSAutoDirective
 if TYPE_CHECKING:
     from sphinx_ts.parser import TSVariable
 
-logger = logging.getLogger(__name__)
+logger = sphinx_logging.getLogger(__name__)
 
 
 class TSAutoDataDirective(TSAutoDirective):
@@ -31,7 +32,14 @@ class TSAutoDataDirective(TSAutoDirective):
         variable_name = self.arguments[0]
 
         # Find and register the variable using common processing pattern
-        result = self._process_object_common(variable_name, "variable")
+        # Use debug level for initial variable lookup since we have fallbacks
+        result = self._process_object_common(
+            variable_name, "variable", log_level=logging.DEBUG
+        )
+        if result:
+            logger.debug("Found '%s' as variable", variable_name)
+        else:
+            logger.debug("Variable '%s' not found, trying as function", variable_name)
 
         # If not found as a variable, try to find it as a function
         if not result:
@@ -39,19 +47,24 @@ class TSAutoDataDirective(TSAutoDirective):
                 variable_name, "function"
             )
             if function_result:
+                logger.debug("Found '%s' as function", variable_name)
                 return self._process_function(function_result, variable_name)
 
+            logger.debug("Function '%s' not found, trying as type alias", variable_name)
             # If not found as a function, try to find it as a type alias
             type_result = self._process_object_common(variable_name, "type")
             if type_result:
+                logger.debug("Found '%s' as type alias", variable_name)
                 return self._process_type_alias(type_result, variable_name)
+
+            logger.warning("Could not find TypeScript object '%s' as variable, function, or type", variable_name)
             return []
 
         ts_variable: TSVariable = result["object"]
 
         # Create standardized variable descriptor
         var_node, var_sig, var_content = self._create_standard_desc_node(
-            "data", variable_name
+            "variable", variable_name
         )
 
         # Create variable signature with type annotation

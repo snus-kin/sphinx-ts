@@ -680,6 +680,27 @@ class TypeScriptDomain(Domain):
                     display_text,
                 )
 
+            # Fallback: if looking for a property but it's registered as a method
+            # (e.g., getter/setter properties in TypeScript)
+            if typ == "prop" and "method" in self.data["objects"] and target in self.data["objects"]["method"]:
+                obj_data = self.data["objects"]["method"][target]
+                docname = obj_data[0]
+                target_id = target
+                display_text = target
+                if "." in target:
+                    # If it's a qualified name, use the full name for ID
+                    target_id = target
+                    # But extract just the member name for display
+                    display_text = target.split(".")[-1]
+                return make_refnode(
+                    builder,
+                    fromdocname,
+                    docname,
+                    f"method-{target_id}",
+                    contnode,
+                    display_text,
+                )
+
         logger.debug("TypeScript xref not found: %s:%s", typ, target)
         return None
 

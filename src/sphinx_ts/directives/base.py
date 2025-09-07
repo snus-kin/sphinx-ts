@@ -6,6 +6,7 @@ for all TypeScript auto-documentation directives.
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -15,12 +16,12 @@ from docutils.core import publish_doctree
 from docutils.parsers.rst import directives
 from docutils.utils import SystemMessage
 from sphinx import addnodes
-from sphinx.util import logging
+from sphinx.util import logging as sphinx_logging
 from sphinx.util.docutils import SphinxDirective
 
 from sphinx_ts.parser import TSDocComment, TSMethod, TSParser, TSProperty
 
-logger = logging.getLogger(__name__)
+logger = sphinx_logging.getLogger(__name__)
 
 
 class TSAutoDirective(SphinxDirective):
@@ -546,6 +547,7 @@ class TSAutoDirective(SphinxDirective):
         object_name: str,
         object_type: str,
         not_found_message: str | None = None,
+        log_level: int = logging.WARNING,
     ) -> dict[str, Any] | None:
         """Find and register objects using a common pattern.
 
@@ -553,6 +555,7 @@ class TSAutoDirective(SphinxDirective):
             object_name: Name of the object to find
             object_type: Type of object (class, interface, enum, etc.)
             not_found_message: Custom warning message if object not found
+            log_level: Logging level for not found message (default: WARNING)
 
         Returns:
             Dict with object data or None if not found
@@ -565,7 +568,7 @@ class TSAutoDirective(SphinxDirective):
                 not_found_message
                 or f"Could not find TypeScript {object_type}: {object_name}"
             )
-            logger.warning(message)
+            logger.log(log_level, message)
             return None
 
         # Register the object with the TypeScript domain
