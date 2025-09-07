@@ -35,6 +35,7 @@ class TSAutoInterfaceDirective(TSAutoDirective):
             return []
 
         ts_interface: TSInterface = result["object"]
+        file_path = result["file_path"]
 
         # Register methods and properties with domain
         self._register_members_with_domain(
@@ -55,6 +56,11 @@ class TSAutoInterfaceDirective(TSAutoDirective):
             "interface",
             type_params=ts_interface.type_parameters,
             extends=ts_interface.extends,
+        )
+
+        # Add inline source link to signature
+        self._add_source_link_to_signature(
+            interface_sig, file_path, ts_interface
         )
 
         # Add standardized documentation content

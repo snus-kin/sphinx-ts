@@ -41,6 +41,13 @@ sphinx_ts_src_dirs = ['src', 'lib']  # Directories to scan for TypeScript files
 sphinx_ts_exclude_patterns = ['**/*.test.ts', '**/*.spec.ts']  # Files to exclude
 sphinx_ts_include_private = False  # Include private members
 sphinx_ts_include_inherited = True  # Include inherited members
+
+# Source linking configuration
+sphinx_ts_show_source_links = True  # Show links to source code
+sphinx_ts_source_base_url = 'https://github.com/yourusername/yourproject'  # Base URL for source links
+sphinx_ts_source_branch = 'main'  # Git branch to link to
+# Or use a custom URL template:
+# sphinx_ts_source_url_template = 'https://github.com/user/repo/blob/{branch}/{path}'
 ```
 
 ## Usage
@@ -143,6 +150,18 @@ For classes, the extension shows:
 - Implemented interfaces
 - Inherited methods and properties
 
-### (TODO) Source Links
+### Source Links
 
-Each documented item includes a reference to its source file for easy navigation.
+Each documented item includes a reference to its source file for easy navigation. Configure source linking with:
+
+```python
+# In conf.py
+sphinx_ts_show_source_links = True  # Enable source links (default: True)
+sphinx_ts_source_base_url = 'https://github.com/yourusername/yourproject'  # Base repository URL
+sphinx_ts_source_branch = 'main'  # Git branch to link to (default: 'main')
+
+# Or use a custom URL template for more control:
+sphinx_ts_source_url_template = 'https://github.com/{user}/{repo}/blob/{branch}/{path}'
+```
+
+Source links will automatically include line numbers when available, linking directly to the specific location where each class, interface, enum, or function is defined.

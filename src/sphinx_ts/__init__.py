@@ -37,6 +37,21 @@ def setup(app: Sphinx) -> dict[str, Any]:
     app.add_config_value(
         "sphinx_ts_include_inherited", default=True, rebuild="env", types=[bool]
     )
+    app.add_config_value(
+        "sphinx_ts_source_url_template",
+        default=None,
+        rebuild="env",
+        types=[str],
+    )
+    app.add_config_value(
+        "sphinx_ts_source_base_url", default=None, rebuild="env", types=[str]
+    )
+    app.add_config_value(
+        "sphinx_ts_source_branch", default="main", rebuild="env", types=[str]
+    )
+    app.add_config_value(
+        "sphinx_ts_show_source_links", default=True, rebuild="env", types=[bool]
+    )
 
     return {
         "version": "0.1.0",

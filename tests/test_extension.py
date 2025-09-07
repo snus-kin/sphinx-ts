@@ -25,7 +25,7 @@ from sphinx_ts.parser import (
 
 # Test constants
 EXPECTED_DIRECTIVES_COUNT = 4
-EXPECTED_CONFIG_VALUES_COUNT = 4
+EXPECTED_CONFIG_VALUES_COUNT = 8
 
 
 class MockSphinxApp:
@@ -120,6 +120,10 @@ class TestExtensionSetup:
             ("sphinx_ts_exclude_patterns", [], "env", [list]),
             ("sphinx_ts_include_private", False, "env", [bool]),
             ("sphinx_ts_include_inherited", True, "env", [bool]),
+            ("sphinx_ts_source_url_template", None, "env", [str]),
+            ("sphinx_ts_source_base_url", None, "env", [str]),
+            ("sphinx_ts_source_branch", "main", "env", [str]),
+            ("sphinx_ts_show_source_links", True, "env", [bool]),
         ]
 
         assert len(app.added_config_values) == EXPECTED_CONFIG_VALUES_COUNT

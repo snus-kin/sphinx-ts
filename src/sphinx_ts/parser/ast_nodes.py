@@ -36,6 +36,8 @@ class TSMember(NamedObjectMixin):
         self.is_readonly = False
         self.is_optional = False
         self.is_export = False
+        self.start_line: int | None = None
+        self.end_line: int | None = None
 
 
 class TSMethod(TSMember):
@@ -90,6 +92,8 @@ class TSClass(NamedObjectMixin):
         self.is_abstract = False
         self.is_export = False
         self.modifiers: list[str] = []
+        self.start_line: int | None = None
+        self.end_line: int | None = None
 
 
 class TSInterface(NamedObjectMixin):
@@ -109,6 +113,8 @@ class TSInterface(NamedObjectMixin):
         self.methods: list[TSMethod] = []
         self.properties: list[TSProperty] = []
         self.is_export = False
+        self.start_line: int | None = None
+        self.end_line: int | None = None
 
 
 class TSVariable(NamedObjectMixin):
@@ -127,6 +133,8 @@ class TSVariable(NamedObjectMixin):
         self.value: str | None = None
         self.kind = "let"  # 'let', 'const', 'var'
         self.is_export = False
+        self.start_line: int | None = None
+        self.end_line: int | None = None
 
 
 class TSEnumMember(NamedObjectMixin):
@@ -161,3 +169,5 @@ class TSEnum(NamedObjectMixin):
         self.is_const = False
         self.is_export = False
         self.is_declare = False
+        self.start_line: int | None = None
+        self.end_line: int | None = None

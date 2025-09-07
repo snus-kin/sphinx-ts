@@ -61,6 +61,11 @@ sphinx_ts_include_private = True
 # Whether to include inherited members in class documentation
 sphinx_ts_include_inherited = True
 
+# Source linking configuration
+sphinx_ts_show_source_links = True
+sphinx_ts_source_base_url = "https://github.com/snus-kin/sphinx-ts"
+sphinx_ts_source_branch = "master"
+
 # -- Intersphinx Configuration ----------------------------------------------
 
 intersphinx_mapping = {
