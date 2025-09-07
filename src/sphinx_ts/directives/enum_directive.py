@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docutils import nodes
-from docutils.statemachine import StringList
 from sphinx import addnodes
 from sphinx.util import logging
 
@@ -62,71 +61,28 @@ class TSAutoEnumDirective(TSAutoDirective):
         self, ts_enum: TSEnum, content_nodes: list[nodes.Node]
     ) -> None:
         """Add the enum header section."""
-        # Create the main description node
-        desc_node = addnodes.desc(
-            domain="ts",
-            objtype="enum",
-            noindex=False,
+        # Create standardized enum descriptor
+        desc_node, sig_node, desc_content = self._create_standard_desc_node(
+            "enum", ts_enum.name
         )
-        desc_node["ids"] = [f"enum-{ts_enum.name}"]
 
-        # Create signature node
-        sig_node = addnodes.desc_signature("", "", first=True)
-        sig_node["class"] = "sig-object ts"
-        sig_node["ids"] = [f"enum-{ts_enum.name}"]
-        sig_node["fullname"] = ts_enum.name
-
-        # Add enum modifiers and keyword
-        signature_parts = []
+        # Collect modifiers
+        modifiers = []
         if ts_enum.is_export:
-            signature_parts.append("export")
-            sig_node += addnodes.desc_annotation("export ", "export ")
-
+            modifiers.append("export")
         if ts_enum.is_declare:
-            signature_parts.append("declare")
-            sig_node += addnodes.desc_annotation("declare ", "declare ")
-
+            modifiers.append("declare")
         if ts_enum.is_const:
-            signature_parts.append("const")
-            sig_node += addnodes.desc_annotation("const ", "const ")
+            modifiers.append("const")
 
-        sig_node += addnodes.desc_annotation("enum ", "enum ")
-        sig_node += addnodes.desc_name(ts_enum.name, ts_enum.name)
+        # Create standardized signature with modifiers
+        self._create_standard_signature(
+            sig_node, ts_enum.name, "enum", modifiers=modifiers
+        )
 
-        desc_node += sig_node
+        # Add standardized documentation content
+        self._add_standard_doc_content(desc_content, ts_enum.doc_comment)
 
-        # Add description content
-        desc_content = addnodes.desc_content()
-
-        # Add enum description
-        if ts_enum.doc_comment:
-            try:
-                # Format the doc comment as RST and parse it into proper nodes
-                formatted_rst_lines = self.format_doc_comment(
-                    ts_enum.doc_comment
-                )
-                if formatted_rst_lines:
-                    # Use Sphinx's content parsing mechanism
-                    content = StringList(formatted_rst_lines)
-                    node = nodes.Element()
-                    self.state.nested_parse(content, self.content_offset, node)
-
-                    # Add the parsed content to enum content
-                    for child in node.children:
-                        desc_content.append(child)
-
-            except Exception as e:
-                # Fallback to plain text if RST parsing fails
-                logger.warning(
-                    "Failed to parse RST content for enum %s: %s",
-                    ts_enum.name,
-                    e,
-                )
-                para = nodes.paragraph()
-                para += nodes.Text(ts_enum.doc_comment.description)
-                desc_content += para
-
-        desc_node += desc_content
         content_nodes.append(desc_node)
 
     def _create_enum_signature(self, ts_enum: TSEnum) -> str:
@@ -177,23 +133,16 @@ class TSAutoEnumDirective(TSAutoDirective):
         """Format an enum member."""
         member_nodes = []
 
-        # Create the main description node
-        desc_node = addnodes.desc(
-            domain="ts",
-            objtype="enum_member",
-            noindex=False,
+        # Create standardized enum member descriptor
+        desc_node, sig_node, desc_content = self._create_standard_desc_node(
+            "enum_member", member.name, parent_name=enum_name
         )
-        desc_node["ids"] = [f"enum-member-{enum_name}.{member.name}"]
 
-        # Create signature node
-        sig_node = addnodes.desc_signature("", "", first=True)
-        sig_node["class"] = "sig-object ts"
-        sig_node["ids"] = [f"enum-member-{enum_name}.{member.name}"]
-        sig_node["fullname"] = f"{enum_name}.{member.name}"
-
-        # Add member name with proper highlighting
+        # Create member signature with qualified name
         sig_node += addnodes.desc_addname(f"{enum_name}.", f"{enum_name}.")
-        sig_node += addnodes.desc_name(member.name, member.name)
+        member_name_node = addnodes.desc_sig_name(member.name, member.name)
+        member_name_node["classes"] = ["sig-name", "descname"]
+        sig_node += member_name_node
 
         # Add value if present
         if member.value is not None:
@@ -201,60 +150,18 @@ class TSAutoEnumDirective(TSAutoDirective):
                 f" = {member.value}", f" = {member.value}"
             )
 
-        desc_node += sig_node
-
-        # Add description content
-        desc_content = addnodes.desc_content()
-
+        # Add standardized documentation content, but skip complex directives
+        # that might cause issues in enum member contexts
         if member.doc_comment and member.doc_comment.description:
-            try:
-                # Format the doc comment as RST and parse it into proper nodes
-                formatted_rst_lines = self.format_doc_comment(
-                    member.doc_comment
-                )
-                if formatted_rst_lines:
-                    # Filter out complex directives that might cause issues
-                    filtered_lines = [
-                        line
-                        for line in formatted_rst_lines
-                        if not line.strip().startswith(".. ")
-                    ]
-
-                    if filtered_lines:
-                        # Use Sphinx's content parsing mechanism
-                        content = StringList(filtered_lines)
-                        node = nodes.Element()
-                        self.state.nested_parse(
-                            content, self.content_offset, node
-                        )
-
-                        # Add the parsed content to member content
-                        for child in node.children:
-                            desc_content.append(child)
-                    else:
-                        # Fallback to simple text if all lines were filtered
-                        para = nodes.paragraph()
-                        para += nodes.Text(member.doc_comment.description)
-                        desc_content += para
-
-            except Exception as e:
-                # Fallback to plain text if RST parsing fails
-                logger.warning(
-                    "Failed to parse RST content for enum member %s.%s: %s",
-                    enum_name,
-                    member.name,
-                    e,
-                )
-                para = nodes.paragraph()
-                para += nodes.Text(member.doc_comment.description)
-                desc_content += para
+            self._add_standard_doc_content(
+                desc_content, member.doc_comment, skip_examples=True
+            )
         else:
             # Add a simple note if no documentation is available
             para = nodes.paragraph()
             para += nodes.emphasis(text="No description available.")
             desc_content += para
 
-        desc_node += desc_content
         member_nodes.append(desc_node)
 
         return member_nodes

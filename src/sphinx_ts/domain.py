@@ -284,7 +284,7 @@ class TSMethod(TypeScriptObject):
         """Parse the signature and return the method name."""
         method_name = sig[: sig.index("(")] if "(" in sig else sig
 
-        signode.append(addnodes.desc_name(method_name, method_name))
+        signode.append(addnodes.desc_sig_name(method_name, method_name))
 
         # Parse and format parameters properly
         parameters = parse_parameters_from_signature(sig)
@@ -332,11 +332,11 @@ class TSProperty(TypeScriptObject):
         if ":" in sig:
             prop_name = sig[: sig.index(":")].strip()
             type_part = sig[sig.index(":") :].strip()
-            signode.append(addnodes.desc_name(prop_name, prop_name))
+            signode.append(addnodes.desc_sig_name(prop_name, prop_name))
             type_annotation = addnodes.desc_annotation(type_part, type_part)
             signode.append(type_annotation)
         else:
-            signode.append(addnodes.desc_name(sig, sig))
+            signode.append(addnodes.desc_sig_name(sig, sig))
 
         return sig.split(":")[0].strip() if ":" in sig else sig
 
@@ -373,7 +373,7 @@ class TSFunction(TypeScriptObject):
 
         func_name = sig[: sig.index("(")] if "(" in sig else sig
 
-        signode.append(addnodes.desc_name(func_name, func_name))
+        signode.append(addnodes.desc_sig_name(func_name, func_name))
 
         # Parse and format parameters properly
         parameters = parse_parameters_from_signature(sig)
@@ -676,6 +676,31 @@ class TypeScriptDomain(Domain):
                     fromdocname,
                     docname,
                     f"{obj_type}-{target_id}",
+                    contnode,
+                    display_text,
+                )
+
+            # Fallback: if looking for a property but it's registered as a
+            # method (e.g., getter/setter properties in TypeScript)
+            if (
+                typ == "prop"
+                and "method" in self.data["objects"]
+                and target in self.data["objects"]["method"]
+            ):
+                obj_data = self.data["objects"]["method"][target]
+                docname = obj_data[0]
+                target_id = target
+                display_text = target
+                if "." in target:
+                    # If it's a qualified name, use the full name for ID
+                    target_id = target
+                    # But extract just the member name for display
+                    display_text = target.split(".")[-1]
+                return make_refnode(
+                    builder,
+                    fromdocname,
+                    docname,
+                    f"method-{target_id}",
                     contnode,
                     display_text,
                 )
