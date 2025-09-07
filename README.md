@@ -121,7 +121,7 @@ The extension supports standard JSDoc tags:
 - `@example` - Code examples
 - `@since version` - Version information
 - `@deprecated message` - Deprecation notices
-- TODO - Custom tags are also preserved
+- Custom tags are also preserved
 
 ## Advanced Features
 
