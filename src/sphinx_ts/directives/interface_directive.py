@@ -7,14 +7,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from docutils import nodes
-from docutils.statemachine import StringList
-from sphinx import addnodes
 from sphinx.util import logging
 
 from .base import TSAutoDirective
 
 if TYPE_CHECKING:
+    from docutils import nodes
+
     from sphinx_ts.parser import TSInterface
 
 logger = logging.getLogger(__name__)
@@ -45,8 +44,8 @@ class TSAutoInterfaceDirective(TSAutoDirective):
         )
 
         # Create standardized interface descriptor
-        interface_desc, interface_sig, interface_content = self._create_standard_desc_node(
-            "interface", interface_name
+        interface_desc, interface_sig, interface_content = (
+            self._create_standard_desc_node("interface", interface_name)
         )
 
         # Create standardized signature with type parameters and extends
@@ -59,7 +58,9 @@ class TSAutoInterfaceDirective(TSAutoDirective):
         )
 
         # Add standardized documentation content
-        self._add_standard_doc_content(interface_content, ts_interface.doc_comment)
+        self._add_standard_doc_content(
+            interface_content, ts_interface.doc_comment
+        )
 
         # Add properties directly to interface content (before methods)
         if ts_interface.properties:

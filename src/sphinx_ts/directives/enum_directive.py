@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docutils import nodes
-from docutils.statemachine import StringList
 from sphinx import addnodes
 from sphinx.util import logging
 

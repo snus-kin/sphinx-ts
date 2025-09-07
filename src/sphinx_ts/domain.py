@@ -680,9 +680,13 @@ class TypeScriptDomain(Domain):
                     display_text,
                 )
 
-            # Fallback: if looking for a property but it's registered as a method
-            # (e.g., getter/setter properties in TypeScript)
-            if typ == "prop" and "method" in self.data["objects"] and target in self.data["objects"]["method"]:
+            # Fallback: if looking for a property but it's registered as a
+            # method (e.g., getter/setter properties in TypeScript)
+            if (
+                typ == "prop"
+                and "method" in self.data["objects"]
+                and target in self.data["objects"]["method"]
+            ):
                 obj_data = self.data["objects"]["method"][target]
                 docname = obj_data[0]
                 target_id = target

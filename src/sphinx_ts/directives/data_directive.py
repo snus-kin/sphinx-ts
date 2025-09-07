@@ -7,10 +7,9 @@ variables, constants, and functions.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from docutils import nodes
-from docutils.statemachine import StringList
 from sphinx import addnodes
 from sphinx.util import logging as sphinx_logging
 
@@ -39,7 +38,9 @@ class TSAutoDataDirective(TSAutoDirective):
         if result:
             logger.debug("Found '%s' as variable", variable_name)
         else:
-            logger.debug("Variable '%s' not found, trying as function", variable_name)
+            logger.debug(
+                "Variable '%s' not found, trying as function", variable_name
+            )
 
         # If not found as a variable, try to find it as a function
         if not result:
@@ -50,14 +51,20 @@ class TSAutoDataDirective(TSAutoDirective):
                 logger.debug("Found '%s' as function", variable_name)
                 return self._process_function(function_result, variable_name)
 
-            logger.debug("Function '%s' not found, trying as type alias", variable_name)
+            logger.debug(
+                "Function '%s' not found, trying as type alias", variable_name
+            )
             # If not found as a function, try to find it as a type alias
             type_result = self._process_object_common(variable_name, "type")
             if type_result:
                 logger.debug("Found '%s' as type alias", variable_name)
                 return self._process_type_alias(type_result, variable_name)
 
-            logger.warning("Could not find TypeScript object '%s' as variable, function, or type", variable_name)
+            logger.warning(
+                "Could not find TypeScript object '%s' as variable, function, "
+                "or type",
+                variable_name,
+            )
             return []
 
         ts_variable: TSVariable = result["object"]
@@ -68,7 +75,7 @@ class TSAutoDataDirective(TSAutoDirective):
         )
 
         # Create variable signature with type annotation
-        modifiers = [ts_variable.kind] if hasattr(ts_variable, 'kind') else []
+        modifiers = [ts_variable.kind] if hasattr(ts_variable, "kind") else []
         self._create_standard_signature(
             var_sig, variable_name, modifiers=modifiers
         )
@@ -80,7 +87,8 @@ class TSAutoDataDirective(TSAutoDirective):
             )
             var_sig += nodes.Text(formatted_type)
 
-        # Add standardized documentation content (skip params for now, handle separately)
+        # Add standardized documentation content (skip params for now, handle
+        # separately)
         self._add_standard_doc_content(
             var_content, ts_variable.doc_comment, skip_params=True
         )
@@ -96,10 +104,14 @@ class TSAutoDataDirective(TSAutoDirective):
             value_data = TSValueParser.parse_value(ts_variable.value)
 
             # For const values with complex properties, use a code block
-            if hasattr(ts_variable, 'kind') and ts_variable.kind == "const" and (
-                value_data["type"] == "object"
-                or value_data["type"].endswith("[]")
-                or "{" in ts_variable.value
+            if (
+                hasattr(ts_variable, "kind")
+                and ts_variable.kind == "const"
+                and (
+                    value_data["type"] == "object"
+                    or value_data["type"].endswith("[]")
+                    or "{" in ts_variable.value
+                )
             ):
                 # Add a prefix to show this is a constant declaration
                 declaration = f"const {ts_variable.name} = "
@@ -276,7 +288,8 @@ class TSAutoDataDirective(TSAutoDirective):
             "function", function_name
         )
 
-        # Create function signature with parameters and explicit CSS class for red styling
+        # Create function signature with parameters and explicit CSS class for
+        # red styling
         func_name_node = addnodes.desc_sig_name(function_name, function_name)
         func_name_node["classes"] = ["sig-name", "descname"]
         func_sig += func_name_node
@@ -330,8 +343,10 @@ class TSAutoDataDirective(TSAutoDirective):
 
         # Create type alias signature
         self._create_standard_signature(
-            type_sig, type_alias_name, "type",
-            type_params=type_alias.get("type_parameters")
+            type_sig,
+            type_alias_name,
+            "type",
+            type_params=type_alias.get("type_parameters"),
         )
 
         # Add type definition

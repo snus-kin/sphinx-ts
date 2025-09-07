@@ -7,14 +7,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from docutils import nodes
-from docutils.statemachine import StringList
-from sphinx import addnodes
 from sphinx.util import logging
 
 from .base import TSAutoDirective
 
 if TYPE_CHECKING:
+    from docutils import nodes
+
     from sphinx_ts.parser import TSClass
 
 logger = logging.getLogger(__name__)
@@ -49,9 +48,7 @@ class TSAutoClassDirective(TSAutoDirective):
         )
 
         # Create standardized signature
-        self._create_standard_signature(
-            class_sig, class_name, "class"
-        )
+        self._create_standard_signature(class_sig, class_name, "class")
 
         # Add standardized documentation content
         self._add_standard_doc_content(class_content, ts_class.doc_comment)

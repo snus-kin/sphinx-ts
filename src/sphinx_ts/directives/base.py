@@ -931,7 +931,8 @@ class TSAutoDirective(SphinxDirective):
             parent_name: Optional parent name for qualified names
 
         Returns:
-            Tuple of (desc_node, signature_node, content_node) for further customization
+            Tuple of (desc_node, signature_node, content_node) for further
+            customization
 
         """
         qualified_name = f"{parent_name}.{name}" if parent_name else name
@@ -957,6 +958,7 @@ class TSAutoDirective(SphinxDirective):
         self,
         content_node: addnodes.desc_content,
         doc_comment: TSDocComment | None,
+        *,
         skip_params: bool = False,
         skip_returns: bool = False,
         skip_examples: bool = False,
@@ -984,7 +986,7 @@ class TSAutoDirective(SphinxDirective):
             )
 
             if formatted_rst_lines:
-                from docutils.statemachine import StringList
+                from docutils.statemachine import StringList  # noqa: PLC0415
 
                 # Use Sphinx's content parsing mechanism
                 content = StringList(formatted_rst_lines)
@@ -998,7 +1000,8 @@ class TSAutoDirective(SphinxDirective):
         except Exception as e:
             # Fallback to plain text if RST parsing fails
             logger.warning(
-                "Failed to parse RST content: %s", e,
+                "Failed to parse RST content: %s",
+                e,
             )
             if doc_comment and doc_comment.description:
                 desc_para = nodes.paragraph()
@@ -1028,11 +1031,15 @@ class TSAutoDirective(SphinxDirective):
         # Add modifiers first
         if modifiers:
             for modifier in modifiers:
-                sig_node += addnodes.desc_annotation(f"{modifier} ", f"{modifier} ")
+                sig_node += addnodes.desc_annotation(
+                    f"{modifier} ", f"{modifier} "
+                )
 
         # Add annotation (class, interface, etc.)
         if annotation:
-            sig_node += addnodes.desc_annotation(f"{annotation} ", f"{annotation} ")
+            sig_node += addnodes.desc_annotation(
+                f"{annotation} ", f"{annotation} "
+            )
 
         # Add main name (use desc_name for main object declarations)
         sig_node += addnodes.desc_name("", name)
