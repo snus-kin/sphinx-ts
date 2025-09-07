@@ -43,53 +43,18 @@ class TSAutoClassDirective(TSAutoDirective):
             class_name, methods=ts_class.methods, properties=ts_class.properties
         )
 
-        # Register only main class in TOC, not every method and property
+        # Create standardized class descriptor
+        class_desc, class_sig, class_content = self._create_standard_desc_node(
+            "class", class_name
+        )
 
-        # Create the main class descriptor with proper docutils structure
-        class_desc = addnodes.desc(domain="ts", objtype="class")
+        # Create standardized signature
+        self._create_standard_signature(
+            class_sig, class_name, "class"
+        )
 
-        # Create class signature
-        class_sig = addnodes.desc_signature("", "", first=True)
-        class_sig["class"] = "sig-object ts"
-        class_sig["ids"] = [f"class-{class_name}"]
-        class_sig += addnodes.desc_annotation("", "class ")
-        class_sig += addnodes.desc_name("", class_name)
-        class_desc += class_sig
-
-        # Create class content container
-        class_content = addnodes.desc_content()
-        class_desc += class_content
-
-        # Add class description
-        if ts_class.doc_comment:
-            try:
-                # Format the doc comment as RST and parse it into proper nodes
-                formatted_rst_lines = self.format_doc_comment(
-                    ts_class.doc_comment
-                )
-                if formatted_rst_lines:
-                    # Use Sphinx's content parsing mechanism
-                    content = StringList(formatted_rst_lines)
-                    node = nodes.Element()
-                    self.state.nested_parse(content, self.content_offset, node)
-
-                    # Add the parsed content to class content
-                    for child in node.children:
-                        class_content.append(child)
-
-            except Exception as e:
-                # Fallback to plain text if RST parsing fails
-                logger.warning(
-                    "Failed to parse RST content for class %s: %s",
-                    class_name,
-                    e,
-                )
-                desc_para = nodes.paragraph()
-                desc_para.append(nodes.Text(ts_class.doc_comment.description))
-                class_content.append(desc_para)
-
-        # Store class name for later use with methods and properties
-        self.current_class_name = class_name
+        # Add standardized documentation content
+        self._add_standard_doc_content(class_content, ts_class.doc_comment)
 
         # Add constructor if present
         if ts_class.constructor:

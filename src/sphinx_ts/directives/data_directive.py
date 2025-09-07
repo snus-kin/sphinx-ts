@@ -49,104 +49,41 @@ class TSAutoDataDirective(TSAutoDirective):
 
         ts_variable: TSVariable = result["object"]
 
-        # Create the main variable directive
-        var_node = nodes.section(ids=[f"variable-{variable_name}"])
+        # Create standardized variable descriptor
+        var_node, var_sig, var_content = self._create_standard_desc_node(
+            "data", variable_name
+        )
 
-        # Create variable signature for the title - only include name and type
-        signature = variable_name
+        # Create variable signature with type annotation
+        modifiers = [ts_variable.kind] if hasattr(ts_variable, 'kind') else []
+        self._create_standard_signature(
+            var_sig, variable_name, modifiers=modifiers
+        )
+
+        # Add type annotation if present
         if ts_variable.type_annotation:
             formatted_type = self.format_parameter_type(
                 ts_variable.type_annotation, add_colon=True
             )
-            signature += f" {formatted_type}"
+            var_sig += nodes.Text(formatted_type)
 
-        # Add variable title
-        title = nodes.title(text=signature)
-        var_node.append(title)
+        # Add standardized documentation content (skip params for now, handle separately)
+        self._add_standard_doc_content(
+            var_content, ts_variable.doc_comment, skip_params=True
+        )
 
-        # Add variable kind (const, let, var) as a subtitle
-        kind_para = nodes.paragraph(classes=["ts-variable-kind"])
-        kind_para.append(nodes.emphasis(text=f"{ts_variable.kind}"))
-        var_node.append(kind_para)
-
-        # Add variable documentation (description for the whole variable)
-        # But exclude @param tags which will be shown in the value table
-        doc_lines = []
-        if ts_variable.doc_comment:
-            # Extract only the description and non-param documentation
-            if ts_variable.doc_comment.description:
-                doc_lines.extend(
-                    ts_variable.doc_comment.description.split("\n")
-                )
-                doc_lines.append("")
-
-            # Skip returns in doc comment since we'll handle it separately
-            # (We handle returns separately with format_returns_section)
-
-            if ts_variable.doc_comment.examples:
-                # Use rubric instead of section to exclude from TOC
-                doc_lines.extend(
-                    [".. rubric:: Examples", "   :class: ts-examples", ""]
-                )
-                # Use only one code block for all examples to prevent duplicate
-                doc_lines.append(".. code-block:: typescript")
-                doc_lines.append("")
-                for example in ts_variable.doc_comment.examples:
-                    doc_lines.extend(
-                        f"   {line}" for line in example.split("\n")
-                    )
-                    if example != ts_variable.doc_comment.examples[-1]:
-                        doc_lines.append(
-                            "   "
-                        )  # Add separator between examples
-                doc_lines.append("")
-
-            if ts_variable.doc_comment.deprecated:
-                doc_lines.extend(
-                    [
-                        ".. warning::",
-                        "",
-                        f"   **Deprecated**: "
-                        f"{ts_variable.doc_comment.deprecated}",
-                        "",
-                    ]
-                )
-
-            if ts_variable.doc_comment.since:
-                doc_lines.extend(
-                    [
-                        ".. note::",
-                        "",
-                        f"   Available since version "
-                        f"{ts_variable.doc_comment.since}",
-                        "",
-                    ]
-                )
-
-        if doc_lines:
-            var_node.extend(self.create_rst_content(doc_lines))
-
-        # Add returns section using the shared method
-        if ts_variable.doc_comment and ts_variable.doc_comment.returns:
-            self.format_returns_section(var_node, ts_variable.doc_comment)
-
-        # Source file information removed for cleaner TOC
-
-        # Add value if available
+        # Add value information if available
         if ts_variable.value:
-            # Use rubric for value instead of section to exclude from TOC
-            value_container = nodes.container(classes=["ts-value-container"])
-            value_rubric = nodes.rubric(text="Value")
-            value_rubric["classes"] = ["ts-value"]
-            value_container.append(value_rubric)
+            # Create a value section within the content
+            value_title = nodes.paragraph()
+            value_title += nodes.strong(text="Value:")
+            var_content.append(value_title)
 
             # Parse the value to determine how to display it
-            # TSValueParser already imported at top
-
             value_data = TSValueParser.parse_value(ts_variable.value)
 
             # For const values with complex properties, use a code block
-            if ts_variable.kind == "const" and (
+            if hasattr(ts_variable, 'kind') and ts_variable.kind == "const" and (
                 value_data["type"] == "object"
                 or value_data["type"].endswith("[]")
                 or "{" in ts_variable.value
@@ -163,14 +100,13 @@ class TSAutoDataDirective(TSAutoDirective):
                 code_block = nodes.literal_block(text=full_code)
                 code_block["language"] = "typescript"
                 code_block["classes"] = ["highlight"]
-                value_container.append(code_block)
+                var_content.append(code_block)
 
                 # Add property descriptions after the code block if available
                 if ts_variable.doc_comment and ts_variable.doc_comment.params:
-                    # Use rubric for property descriptions to exclude from TOC
-                    props_rubric = nodes.rubric(text="Property Descriptions")
-                    props_rubric["classes"] = ["ts-property-descriptions"]
-                    value_container.append(props_rubric)
+                    props_title = nodes.paragraph()
+                    props_title += nodes.strong(text="Property Descriptions:")
+                    var_content.append(props_title)
 
                     # Create a definition list for properties
                     prop_list = nodes.definition_list()
@@ -195,20 +131,18 @@ class TSAutoDataDirective(TSAutoDirective):
                             prop_list += list_item
 
                     if len(prop_list.children) > 0:
-                        value_container.append(prop_list)
+                        var_content.append(prop_list)
             else:
                 # Use table for simpler values
                 value_table = self._create_value_table(ts_variable)
                 if value_table:
-                    value_container.append(value_table)
+                    var_content.append(value_table)
                 else:
                     # Fallback to simple display if table creation fails
                     value_para = nodes.paragraph()
                     value_code = nodes.literal(text=ts_variable.value)
                     value_para += value_code
-                    value_container.append(value_para)
-
-            var_node.append(value_container)
+                    var_content.append(value_para)
 
         return [var_node]
 
@@ -319,32 +253,24 @@ class TSAutoDataDirective(TSAutoDirective):
         return table
 
     def _process_function(
-        self, result: dict[str, Any], function_name: str
+        self, result: dict, function_name: str
     ) -> list[nodes.Node]:
-        """Process a TypeScript function and render it as data."""
+        """Process a TypeScript function."""
         ts_function = result["object"]
 
-        # Note: function is already registered via _process_object_common call
-
-        func_node = addnodes.desc(
-            domain="ts",
-            objtype="function",
-            noindex=False,
+        # Create standardized function descriptor
+        func_node, func_sig, func_content = self._create_standard_desc_node(
+            "function", function_name
         )
-        func_node["ids"] = [f"function-{function_name}"]
 
-        # Create function signature
-        sig = addnodes.desc_signature("", "", first=True)
-        sig["class"] = "sig-object ts"
-        sig["ids"] = [f"function-{function_name}"]
-        func_node += sig
-
-        # Add function name
-        sig += addnodes.desc_name("", function_name)
+        # Create function signature with parameters and explicit CSS class for red styling
+        func_name_node = addnodes.desc_sig_name(function_name, function_name)
+        func_name_node["classes"] = ["sig-name", "descname"]
+        func_sig += func_name_node
 
         # Add parameter list
         paramlist = addnodes.desc_parameterlist()
-        sig += paramlist
+        func_sig += paramlist
 
         # Add parameters to signature
         if ts_function.parameters:
@@ -357,112 +283,24 @@ class TSAutoDataDirective(TSAutoDirective):
 
         # Add return type
         if ts_function.return_type:
-            sig += nodes.Text(": ")
+            func_sig += nodes.Text(": ")
             formatted_type = self.format_parameter_type(ts_function.return_type)
-            sig += nodes.emphasis("", formatted_type)
+            func_sig += nodes.emphasis("", formatted_type)
 
-        # Add content container
-        content = addnodes.desc_content()
-        func_node += content
+        # Add standardized documentation content
+        self._add_standard_doc_content(func_content, ts_function.doc_comment)
 
-        # Add function documentation
-        if ts_function.doc_comment:
-            try:
-                # Format the doc comment as RST and parse it into proper nodes
-                formatted_rst_lines = self.format_doc_comment(
-                    ts_function.doc_comment
-                )
-                if formatted_rst_lines:
-                    # Use Sphinx's content parsing mechanism
-                    rst_content = StringList(formatted_rst_lines)
-                    node = nodes.Element()
-                    self.state.nested_parse(
-                        rst_content, self.content_offset, node
-                    )
-
-                    # Add the parsed content to function content
-                    for child in node.children:
-                        content.append(child)
-
-            except Exception as e:
-                # Fallback to plain text if RST parsing fails
-                logger.warning(
-                    "Failed to parse RST content for function %s: %s",
-                    ts_function.name,
-                    e,
-                )
-                desc_para = nodes.paragraph()
-                desc_para.append(
-                    nodes.Text(ts_function.doc_comment.description)
-                )
-                content.append(desc_para)
-
-        # Add parameter information
+        # Add parameter information using shared method
         if ts_function.parameters:
-            # Extract documented parameters from doc_comment if it exists
-            documented_params = {}
-            if ts_function.doc_comment and ts_function.doc_comment.params:
-                documented_params = ts_function.doc_comment.params
+            self._add_parameter_list(func_content, ts_function)
 
-            # Add a rubric for parameters
-            param_rubric = nodes.rubric(text="Parameters")
-            content.append(param_rubric)
-
-            # Create field list for parameters
-            field_list = nodes.field_list()
-            content.append(field_list)
-
-            # Add parameters as field items
-            for param in ts_function.parameters:
-                # Create field item
-                field = nodes.field()
-                field_list.append(field)
-
-                # Create field name with parameter name and optional marker
-                field_name = nodes.field_name("")
-                self.format_optional_parameter(
-                    field_name,
-                    param["name"],
-                    param.get("optional", False),
-                    in_signature=False,
-                )
-
-                field.append(field_name)
-
-                # Create field body with type and description
-                field_body = nodes.field_body()
-                field.append(field_body)
-
-                # Create paragraph for type information
-                type_para = nodes.paragraph()
-                if param.get("type"):
-                    type_para.append(nodes.strong("Type: "))
-                    formatted_type = self.format_parameter_type(
-                        param.get("type")
-                    )
-                    type_para.append(nodes.literal("", formatted_type))
-                    if param.get("default"):
-                        type_para.append(
-                            nodes.Text(f", default: {param.get('default')}")
-                        )
-                    field_body.append(type_para)
-
-                # Create paragraph for description
-                if param["name"] in documented_params:
-                    desc_para = nodes.paragraph()
-                    desc_para.append(
-                        nodes.Text(documented_params[param["name"]])
-                    )
-                    field_body.append(desc_para)
-
-        # Add returns documentation using the shared method
+        # Add returns documentation
         if ts_function.doc_comment and ts_function.doc_comment.returns:
-            self.format_returns_section(
-                content, ts_function.doc_comment, ts_function.return_type
-            )
+            self._add_method_returns(func_content, ts_function)
 
         # Add examples documentation
-        self._add_examples_section(content, ts_function.doc_comment)
+        if ts_function.doc_comment:
+            self._add_examples_section(func_content, ts_function.doc_comment)
 
         return [func_node]
 
@@ -472,55 +310,25 @@ class TSAutoDataDirective(TSAutoDirective):
         """Process a TypeScript type alias."""
         type_alias = result["object"]
 
-        # Create the main type alias directive
-        type_node = nodes.section(ids=[f"type-{type_alias_name}"])
+        # Create standardized type alias descriptor
+        type_node, type_sig, type_content = self._create_standard_desc_node(
+            "type", type_alias_name
+        )
 
-        # Create type alias signature for the title
-        signature = f"type {type_alias_name}"
-        if type_alias.get("type_parameters"):
-            signature += f"<{', '.join(type_alias['type_parameters'])}>"
+        # Create type alias signature
+        self._create_standard_signature(
+            type_sig, type_alias_name, "type",
+            type_params=type_alias.get("type_parameters")
+        )
 
-        # Format the type definition with proper union handling
+        # Add type definition
         type_def = type_alias.get("type_definition", "")
         if type_def:
             formatted_type_def = self.format_type_annotation(type_def)
-            signature += f" = {formatted_type_def}"
+            type_sig += nodes.Text(f" = {formatted_type_def}")
 
-        # Add type alias title
-        title = nodes.title(text=signature)
-        type_node.append(title)
-
-        # Add type alias kind as a subtitle
-        kind_para = nodes.paragraph(classes=["ts-type-alias-kind"])
-        kind_para.append(nodes.emphasis(text="type alias"))
-        type_node.append(kind_para)
-
-        # Add type alias documentation
-        doc_lines = []
+        # Add standardized documentation content
         doc_comment = type_alias.get("doc_comment")
-        if (
-            doc_comment
-            and hasattr(doc_comment, "description")
-            and doc_comment.description
-        ):
-            doc_lines.extend(doc_comment.description.split("\n"))
-            doc_lines.append("")
-
-            # Add examples if present
-            if hasattr(doc_comment, "examples") and doc_comment.examples:
-                doc_lines.extend(
-                    [".. rubric:: Examples", "   :class: ts-examples", ""]
-                )
-                doc_lines.append(".. code-block:: typescript")
-                doc_lines.append("")
-                for example in doc_comment.examples:
-                    doc_lines.extend(
-                        f"   {line}" for line in example.split("\n")
-                    )
-                doc_lines.append("")
-
-        if doc_lines:
-            content = self.create_rst_content(doc_lines)
-            type_node.extend(content)
+        self._add_standard_doc_content(type_content, doc_comment)
 
         return [type_node]

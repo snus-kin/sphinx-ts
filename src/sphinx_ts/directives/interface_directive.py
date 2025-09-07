@@ -44,66 +44,22 @@ class TSAutoInterfaceDirective(TSAutoDirective):
             properties=ts_interface.properties,
         )
 
-        # Create the main interface descriptor with proper docutils structure
-        interface_desc = addnodes.desc(domain="ts", objtype="interface")
+        # Create standardized interface descriptor
+        interface_desc, interface_sig, interface_content = self._create_standard_desc_node(
+            "interface", interface_name
+        )
 
-        # Create interface signature
-        interface_sig = addnodes.desc_signature("", "", first=True)
-        interface_sig["class"] = "sig-object ts"
-        interface_sig["ids"] = [f"interface-{interface_name}"]
-        interface_sig += addnodes.desc_annotation("", "interface ")
-        interface_sig += addnodes.desc_name("", interface_name)
+        # Create standardized signature with type parameters and extends
+        self._create_standard_signature(
+            interface_sig,
+            interface_name,
+            "interface",
+            type_params=ts_interface.type_parameters,
+            extends=ts_interface.extends,
+        )
 
-        # Add type parameters if present
-        if ts_interface.type_parameters:
-            interface_sig += nodes.Text(
-                f"<{', '.join(ts_interface.type_parameters)}>"
-            )
-
-        # Add extends clause if present
-        if ts_interface.extends:
-            interface_sig += nodes.Text(
-                f" extends {', '.join(ts_interface.extends)}"
-            )
-
-        interface_desc += interface_sig
-
-        # Create interface content container
-        interface_content = addnodes.desc_content()
-        interface_desc += interface_content
-
-        # Add interface description
-        if ts_interface.doc_comment:
-            try:
-                # Format the doc comment as RST and parse it into proper nodes
-                formatted_rst_lines = self.format_doc_comment(
-                    ts_interface.doc_comment
-                )
-                if formatted_rst_lines:
-                    # Use Sphinx's content parsing mechanism
-                    content = StringList(formatted_rst_lines)
-                    node = nodes.Element()
-                    self.state.nested_parse(content, self.content_offset, node)
-
-                    # Add the parsed content to interface content
-                    for child in node.children:
-                        interface_content.append(child)
-
-            except Exception as e:
-                # Fallback to plain text if RST parsing fails
-                logger.warning(
-                    "Failed to parse RST content for interface %s: %s",
-                    interface_name,
-                    e,
-                )
-                desc_para = nodes.paragraph()
-                desc_para.append(
-                    nodes.Text(ts_interface.doc_comment.description)
-                )
-                interface_content.append(desc_para)
-
-        # Store interface name for later use with methods and properties
-        self.current_interface_name = interface_name
+        # Add standardized documentation content
+        self._add_standard_doc_content(interface_content, ts_interface.doc_comment)
 
         # Add properties directly to interface content (before methods)
         if ts_interface.properties:

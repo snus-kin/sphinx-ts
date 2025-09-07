@@ -483,7 +483,7 @@ class TSAutoDirective(SphinxDirective):
         default_val = param.get("default")
 
         # Add parameter name
-        parameter += addnodes.desc_sig_name("", param_name)
+        parameter += addnodes.desc_sig_name(param_name, param_name)
 
         # Add type annotation
         if param_type:
@@ -611,13 +611,15 @@ class TSAutoDirective(SphinxDirective):
 
         # Create signature for method
         sig = addnodes.desc_signature("", "", first=True)
-        sig["class"] = "sig-object ts"
+        sig["class"] = "sig-object ts ts-method"
         sig["ids"] = [f"method-{method_id}"]
         desc += sig
 
-        # Add method name
+        # Add method name with explicit CSS class for red styling
         name = title_override or method.name
-        sig += addnodes.desc_sig_name("", name)
+        method_name_node = addnodes.desc_sig_name(name, name)
+        method_name_node["classes"] = ["sig-name", "descname"]
+        sig += method_name_node
 
         # Add method parameters
         paramlist = addnodes.desc_parameterlist()
@@ -786,8 +788,10 @@ class TSAutoDirective(SphinxDirective):
         sig["ids"] = [f"property-{prop_id}"]
         desc += sig
 
-        # Add property name with better formatting
-        sig += addnodes.desc_sig_name("", prop.name)
+        # Add property name with explicit CSS class for red styling
+        prop_name_node = addnodes.desc_sig_name(prop.name, prop.name)
+        prop_name_node["classes"] = ["sig-name", "descname"]
+        sig += prop_name_node
 
         # Add optional marker for properties if needed
         if hasattr(prop, "is_optional") and prop.is_optional:
@@ -885,6 +889,7 @@ class TSAutoDirective(SphinxDirective):
             noindex: Whether to exclude from TOC (default True for members)
 
         """
+        # Register only methods with domain
         if methods:
             for method in methods:
                 if hasattr(method, "name") and method.name:
@@ -906,3 +911,133 @@ class TSAutoDirective(SphinxDirective):
                         self.env.docname,
                         noindex=noindex,
                     )
+
+    def _create_standard_desc_node(
+        self,
+        objtype: str,
+        name: str,
+        parent_name: str | None = None,
+    ) -> tuple[addnodes.desc, addnodes.desc_signature, addnodes.desc_content]:
+        """Create a standardized desc node structure.
+
+        This provides consistent formatting across all directive types.
+
+        Args:
+            objtype: The object type (class, interface, enum, etc.)
+            name: The name of the object
+            parent_name: Optional parent name for qualified names
+
+        Returns:
+            Tuple of (desc_node, signature_node, content_node) for further customization
+
+        """
+        qualified_name = f"{parent_name}.{name}" if parent_name else name
+
+        # Create the main desc node
+        desc = addnodes.desc(domain="ts", objtype=objtype)
+        desc["ids"] = [f"{objtype}-{qualified_name}"]
+
+        # Create signature
+        sig = addnodes.desc_signature("", "", first=True)
+        sig["class"] = f"sig-object ts ts-{objtype}"
+        sig["ids"] = [f"{objtype}-{qualified_name}"]
+        sig["fullname"] = qualified_name
+        desc += sig
+
+        # Create content container
+        content = addnodes.desc_content()
+        desc += content
+
+        return desc, sig, content
+
+    def _add_standard_doc_content(
+        self,
+        content_node: addnodes.desc_content,
+        doc_comment: TSDocComment | None,
+        skip_params: bool = False,
+        skip_returns: bool = False,
+        skip_examples: bool = False,
+    ) -> None:
+        """Add standardized documentation content to a content node.
+
+        Args:
+            content_node: The content node to add documentation to
+            doc_comment: The doc comment to format
+            skip_params: Whether to skip parameter documentation
+            skip_returns: Whether to skip return documentation
+            skip_examples: Whether to skip example documentation
+
+        """
+        if not doc_comment:
+            return
+
+        try:
+            # Format the doc comment as RST and parse it into proper nodes
+            formatted_rst_lines = self.format_doc_comment(
+                doc_comment,
+                skip_params=skip_params,
+                skip_returns=skip_returns,
+                skip_examples=skip_examples,
+            )
+
+            if formatted_rst_lines:
+                from docutils.statemachine import StringList
+
+                # Use Sphinx's content parsing mechanism
+                content = StringList(formatted_rst_lines)
+                node = nodes.Element()
+                self.state.nested_parse(content, self.content_offset, node)
+
+                # Add the parsed content
+                for child in node.children:
+                    content_node.append(child)
+
+        except Exception as e:
+            # Fallback to plain text if RST parsing fails
+            logger.warning(
+                "Failed to parse RST content: %s", e,
+            )
+            if doc_comment and doc_comment.description:
+                desc_para = nodes.paragraph()
+                desc_para.append(nodes.Text(doc_comment.description))
+                content_node.append(desc_para)
+
+    def _create_standard_signature(
+        self,
+        sig_node: addnodes.desc_signature,
+        name: str,
+        annotation: str = "",
+        type_params: list[str] | None = None,
+        extends: list[str] | None = None,
+        modifiers: list[str] | None = None,
+    ) -> None:
+        """Create a standardized signature with consistent formatting.
+
+        Args:
+            sig_node: The signature node to populate
+            name: The main name of the object
+            annotation: Optional annotation (e.g., "class", "interface")
+            type_params: Optional type parameters
+            extends: Optional extends clauses
+            modifiers: Optional modifiers (export, declare, etc.)
+
+        """
+        # Add modifiers first
+        if modifiers:
+            for modifier in modifiers:
+                sig_node += addnodes.desc_annotation(f"{modifier} ", f"{modifier} ")
+
+        # Add annotation (class, interface, etc.)
+        if annotation:
+            sig_node += addnodes.desc_annotation(f"{annotation} ", f"{annotation} ")
+
+        # Add main name (use desc_name for main object declarations)
+        sig_node += addnodes.desc_name("", name)
+
+        # Add type parameters
+        if type_params:
+            sig_node += nodes.Text(f"<{', '.join(type_params)}>")
+
+        # Add extends clause
+        if extends:
+            sig_node += nodes.Text(f" extends {', '.join(extends)}")
