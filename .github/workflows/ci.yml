@@ -55,6 +55,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for tags
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
@@ -62,11 +64,17 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Set up Python
-        run: uv python install 3.11
-
       - name: Install dependencies
         run: uv sync --dev
+
+      - name: Set version from Git tag
+        if: github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          # Extract version from tag (remove 'v' prefix if present)
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}
+          echo "Setting version to: $VERSION"
+          uv version $VERSION
 
       - name: Build package
         run: uv build
@@ -88,14 +96,6 @@ jobs:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
