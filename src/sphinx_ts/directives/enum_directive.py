@@ -127,32 +127,6 @@ class TSAutoEnumDirective(TSAutoDirective):
                 para += nodes.Text(ts_enum.doc_comment.description)
                 desc_content += para
 
-        # Add members in a codeblock
-        if ts_enum.members:
-            members_para = nodes.paragraph()
-            members_para += nodes.strong(text="Members:")
-            desc_content += members_para
-
-            # Create a codeblock with the members
-            member_lines = []
-            for i, member in enumerate(ts_enum.members):
-                # Add JSDoc comment if present
-                if member.doc_comment and member.doc_comment.description:
-                    comment_text = member.doc_comment.description.strip()
-                    member_lines.append(f"/** {comment_text} */")
-
-                # Add member signature with comma
-                member_sig = self._create_member_signature(member)
-                # Add comma except for the last member
-                if i < len(ts_enum.members) - 1:
-                    member_sig += ","
-                member_lines.append(member_sig)
-
-            codeblock = nodes.literal_block()
-            codeblock["language"] = "typescript"
-            codeblock += nodes.Text("\n".join(member_lines))
-            desc_content += codeblock
-
         desc_node += desc_content
         content_nodes.append(desc_node)
 
@@ -178,49 +152,102 @@ class TSAutoEnumDirective(TSAutoDirective):
         self, ts_enum: TSEnum, content_nodes: list[nodes.Node]
     ) -> None:
         """Add enum members section."""
-        # Members are now added inline in the main description
+        if not ts_enum.members:
+            return
 
-    def _format_enum_member(self, member: TSEnumMember) -> list[nodes.Node]:
+        # Add a section header for members
+        members_section = nodes.section()
+        members_section["ids"] = [f"enum-{ts_enum.name}-members"]
+
+        # Create members title
+        title = nodes.title()
+        title += nodes.Text("Members")
+        members_section += title
+
+        # Add each member as individual documentation
+        for member in ts_enum.members:
+            member_nodes = self._format_enum_member(member, ts_enum.name)
+            for member_node in member_nodes:
+                members_section += member_node
+
+        content_nodes.append(members_section)
+
+    def _format_enum_member(self, member: TSEnumMember, enum_name: str) -> list[nodes.Node]:
         """Format an enum member."""
         member_nodes = []
 
         # Create member signature
         member_signature = self._create_member_signature(member)
 
-        # Create signature node
-        sig_node = addnodes.desc_signature()
-        sig_node["fullname"] = member.name
-        sig_node += addnodes.desc_name(text=member_signature)
-
         # Create the main description node
-        desc_node = addnodes.desc()
-        desc_node["objtype"] = "enum_member"
-        desc_node["noindex"] = True
+        desc_node = addnodes.desc(
+            domain="ts",
+            objtype="enum_member",
+            noindex=False,
+        )
+        desc_node["ids"] = [f"enum-member-{enum_name}.{member.name}"]
+
+        # Create signature node
+        sig_node = addnodes.desc_signature("", "", first=True)
+        sig_node["class"] = "sig-object ts"
+        sig_node["ids"] = [f"enum-member-{enum_name}.{member.name}"]
+        sig_node["fullname"] = f"{enum_name}.{member.name}"
+
+        # Add member name with proper highlighting
+        sig_node += addnodes.desc_addname(f"{enum_name}.", f"{enum_name}.")
+        sig_node += addnodes.desc_name(member.name, member.name)
+
+        # Add value if present
+        if member.value is not None:
+            sig_node += addnodes.desc_annotation(f" = {member.value}", f" = {member.value}")
+
         desc_node += sig_node
 
         # Add description content
         desc_content = addnodes.desc_content()
-        if member.doc_comment:
-            desc_text = self.format_doc_comment(member.doc_comment)
-            if desc_text:
-                # Filter out complex directives for member comments too
-                filtered_text = []
-                filtered_text = [
-                    line
-                    for line in desc_text
-                    if not line.strip().startswith(".. ")
-                ]
 
-                if filtered_text:
-                    try:
-                        rst_content = self.create_rst_content(filtered_text)
-                        desc_content.extend(rst_content)
-                    except (SystemMessage, ValueError) as e:
-                        logger.warning("Failed to parse RST content: %s", e)
-                        # Fallback to simple text
+        if member.doc_comment and member.doc_comment.description:
+            try:
+                # Format the doc comment as RST and parse it into proper nodes
+                formatted_rst_lines = self.format_doc_comment(member.doc_comment)
+                if formatted_rst_lines:
+                    # Filter out complex directives that might cause issues
+                    filtered_lines = [
+                        line for line in formatted_rst_lines
+                        if not line.strip().startswith(".. ")
+                    ]
+
+                    if filtered_lines:
+                        # Use Sphinx's content parsing mechanism
+                        content = StringList(filtered_lines)
+                        node = nodes.Element()
+                        self.state.nested_parse(content, self.content_offset, node)
+
+                        # Add the parsed content to member content
+                        for child in node.children:
+                            desc_content.append(child)
+                    else:
+                        # Fallback to simple text if all lines were filtered
                         para = nodes.paragraph()
                         para += nodes.Text(member.doc_comment.description)
                         desc_content += para
+
+            except Exception as e:
+                # Fallback to plain text if RST parsing fails
+                logger.warning(
+                    "Failed to parse RST content for enum member %s.%s: %s",
+                    enum_name,
+                    member.name,
+                    e,
+                )
+                para = nodes.paragraph()
+                para += nodes.Text(member.doc_comment.description)
+                desc_content += para
+        else:
+            # Add a simple note if no documentation is available
+            para = nodes.paragraph()
+            para += nodes.emphasis(text="No description available.")
+            desc_content += para
 
         desc_node += desc_content
         member_nodes.append(desc_node)
