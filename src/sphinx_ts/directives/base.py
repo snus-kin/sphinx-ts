@@ -132,6 +132,131 @@ class TSAutoDirective(SphinxDirective):
 
         return None
 
+    def _generate_source_url(
+        self, file_path: str | Path, obj: Any = None
+    ) -> str | None:
+        """Generate a source URL for the given file and object.
+
+        Args:
+            file_path: Path to the source file
+            obj: Optional object with line number information
+
+        Returns:
+            A source URL string or None if not configured
+
+        """
+        # Check if source links are enabled
+        if not self.env.config.sphinx_ts_show_source_links:
+            return None
+
+        # Get source URL configuration
+        base_url = self.env.config.sphinx_ts_source_base_url
+        url_template = self.env.config.sphinx_ts_source_url_template
+        branch = self.env.config.sphinx_ts_source_branch
+
+        if not base_url and not url_template:
+            return None
+
+        # Convert to Path object and clean up the path
+        file_path = Path(file_path)
+
+        # Handle path resolution properly for docs build context
+        if file_path.is_absolute():
+            try:
+                # Try to make it relative to current working directory
+                relative_path = file_path.relative_to(Path.cwd())
+            except ValueError:
+                # Fallback to just the filename if we can't make it relative
+                relative_path = Path(file_path.name)
+        else:
+            # For relative paths, resolve any ".." components and make clean
+            relative_path = file_path.resolve().relative_to(
+                Path.cwd().resolve()
+            )
+
+        # Clean up any remaining ".." components - these indicate we need to
+        # go up from docs
+        path_parts = relative_path.parts
+        if path_parts and path_parts[0] == "..":
+            # Remove leading ".." components as they represent going up from
+            # docs directory
+            clean_parts = []
+            for part in path_parts:
+                if part != "..":
+                    clean_parts.append(part)
+            if clean_parts:
+                relative_path = Path(*clean_parts)
+            else:
+                relative_path = Path(file_path.name)
+
+        # Generate the URL
+        if url_template:
+            # Use custom template
+            source_url = url_template.format(
+                path=str(relative_path), branch=branch, file=relative_path.name
+            )
+        else:
+            # Use base URL with standard GitHub format
+            source_url = f"{base_url.rstrip('/')}/blob/{branch}/{relative_path}"
+
+        # Add line numbers if available
+        if obj and hasattr(obj, "start_line") and obj.start_line:
+            if (
+                hasattr(obj, "end_line")
+                and obj.end_line
+                and obj.end_line != obj.start_line
+            ):
+                source_url += f"#L{obj.start_line}-L{obj.end_line}"
+            else:
+                source_url += f"#L{obj.start_line}"
+
+        return source_url
+
+    def _add_source_link_to_signature(
+        self,
+        signature_node: addnodes.desc_signature,
+        file_path: str | Path,
+        obj: Any = None,
+    ) -> None:
+        """Add an inline source link to a signature node.
+
+        Args:
+            signature_node: The signature node to add the link to
+            file_path: Path to the source file
+            obj: Optional object with line number information
+
+        """
+        source_url = self._generate_source_url(file_path, obj)
+        if not source_url:
+            return
+
+        # Get relative path for title
+        file_path = Path(file_path)
+        if file_path.is_absolute():
+            try:
+                title_path = file_path.relative_to(Path.cwd())
+            except ValueError:
+                title_path = file_path.name
+        else:
+            title_path = file_path
+
+        # Add spacing before the source link
+        signature_node += nodes.Text("  ")
+
+        # Create the inline source link with brackets
+        signature_node += nodes.Text("[")
+
+        ref = nodes.reference(
+            "",
+            "source",
+            refuri=source_url,
+            title=f"View source in {title_path}",
+        )
+        ref["classes"].append("source-link")
+        signature_node += ref
+
+        signature_node += nodes.Text("]")
+
     def _register_object_with_domain(
         self,
         obj_type: str,

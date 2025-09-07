@@ -68,6 +68,7 @@ class TSAutoDataDirective(TSAutoDirective):
             return []
 
         ts_variable: TSVariable = result["object"]
+        file_path = result["file_path"]
 
         # Create standardized variable descriptor
         var_node, var_sig, var_content = self._create_standard_desc_node(
@@ -89,6 +90,10 @@ class TSAutoDataDirective(TSAutoDirective):
 
         # Add standardized documentation content (skip params for now, handle
         # separately)
+        # Add inline source link to signature
+        self._add_source_link_to_signature(var_sig, file_path, ts_variable)
+
+        # Add standardized documentation content
         self._add_standard_doc_content(
             var_content, ts_variable.doc_comment, skip_params=True
         )
@@ -282,6 +287,7 @@ class TSAutoDataDirective(TSAutoDirective):
     ) -> list[nodes.Node]:
         """Process a TypeScript function."""
         ts_function = result["object"]
+        file_path = result["file_path"]
 
         # Create standardized function descriptor
         func_node, func_sig, func_content = self._create_standard_desc_node(
@@ -313,6 +319,9 @@ class TSAutoDataDirective(TSAutoDirective):
             formatted_type = self.format_parameter_type(ts_function.return_type)
             func_sig += nodes.emphasis("", formatted_type)
 
+        # Add inline source link to signature
+        self._add_source_link_to_signature(func_sig, file_path, ts_function)
+
         # Add standardized documentation content
         self._add_standard_doc_content(func_content, ts_function.doc_comment)
 
@@ -335,6 +344,7 @@ class TSAutoDataDirective(TSAutoDirective):
     ) -> list[nodes.Node]:
         """Process a TypeScript type alias."""
         type_alias = result["object"]
+        file_path = result["file_path"]
 
         # Create standardized type alias descriptor
         type_node, type_sig, type_content = self._create_standard_desc_node(
@@ -354,6 +364,9 @@ class TSAutoDataDirective(TSAutoDirective):
         if type_def:
             formatted_type_def = self.format_type_annotation(type_def)
             type_sig += nodes.Text(f" = {formatted_type_def}")
+
+        # Add inline source link to signature
+        self._add_source_link_to_signature(type_sig, file_path, type_alias)
 
         # Add standardized documentation content
         doc_comment = type_alias.get("doc_comment")

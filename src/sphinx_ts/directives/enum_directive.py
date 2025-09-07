@@ -40,16 +40,19 @@ class TSAutoEnumDirective(TSAutoDirective):
             return []
 
         ts_enum: TSEnum = result["object"]
+        file_path = result["file_path"]
 
         # Create the main enum documentation
-        return self._create_enum_documentation(ts_enum)
+        return self._create_enum_documentation(ts_enum, file_path)
 
-    def _create_enum_documentation(self, ts_enum: TSEnum) -> list[nodes.Node]:
+    def _create_enum_documentation(
+        self, ts_enum: TSEnum, file_path: str
+    ) -> list[nodes.Node]:
         """Create documentation nodes for an enum."""
         content_nodes = []
 
         # Add enum header
-        self._add_enum_header(ts_enum, content_nodes)
+        self._add_enum_header(ts_enum, content_nodes, file_path)
 
         # Add enum members section
         if ts_enum.members:
@@ -58,7 +61,7 @@ class TSAutoEnumDirective(TSAutoDirective):
         return content_nodes
 
     def _add_enum_header(
-        self, ts_enum: TSEnum, content_nodes: list[nodes.Node]
+        self, ts_enum: TSEnum, content_nodes: list[nodes.Node], file_path: str
     ) -> None:
         """Add the enum header section."""
         # Create standardized enum descriptor
@@ -79,6 +82,9 @@ class TSAutoEnumDirective(TSAutoDirective):
         self._create_standard_signature(
             sig_node, ts_enum.name, "enum", modifiers=modifiers
         )
+
+        # Add inline source link to signature
+        self._add_source_link_to_signature(sig_node, file_path, ts_enum)
 
         # Add standardized documentation content
         self._add_standard_doc_content(desc_content, ts_enum.doc_comment)

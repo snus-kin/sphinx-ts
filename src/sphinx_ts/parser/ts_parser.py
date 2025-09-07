@@ -203,6 +203,10 @@ class TSParser:
         class_name = self._get_node_text(name_node, source_code)
         class_obj = TSClass(class_name)
 
+        # Add line number tracking
+        class_obj.start_line = node.start_point[0] + 1
+        class_obj.end_line = node.end_point[0] + 1
+
         # Get documentation comment
         class_obj.doc_comment = self._find_doc_comment(node, source_code)
 
@@ -252,6 +256,10 @@ class TSParser:
         method_name = self._get_node_text(name_node, source_code)
         method = TSMethod(method_name)
 
+        # Add line number tracking
+        method.start_line = node.start_point[0] + 1
+        method.end_line = node.end_point[0] + 1
+
         # Get documentation comment
         method.doc_comment = self._find_doc_comment(node, source_code)
 
@@ -279,8 +287,12 @@ class TSParser:
         if not name_node:
             return None
 
-        prop_name = self._get_node_text(name_node, source_code)
-        prop = TSProperty(prop_name)
+        property_name = self._get_node_text(name_node, source_code)
+        prop = TSProperty(property_name)
+
+        # Add line number tracking
+        prop.start_line = node.start_point[0] + 1
+        prop.end_line = node.end_point[0] + 1
 
         # Get documentation comment
         prop.doc_comment = self._find_doc_comment(node, source_code)
@@ -310,6 +322,10 @@ class TSParser:
         interface_name = self._get_node_text(name_node, source_code)
         interface_obj = TSInterface(interface_name)
 
+        # Add line number tracking
+        interface_obj.start_line = node.start_point[0] + 1
+        interface_obj.end_line = node.end_point[0] + 1
+
         # Get documentation comment
         interface_obj.doc_comment = self._find_doc_comment(node, source_code)
 
@@ -337,6 +353,10 @@ class TSParser:
 
         enum_name = self._get_node_text(name_node, source_code)
         enum_obj = TSEnum(enum_name)
+
+        # Add line number tracking
+        enum_obj.start_line = node.start_point[0] + 1
+        enum_obj.end_line = node.end_point[0] + 1
 
         # Get documentation comment
         enum_obj.doc_comment = self._find_doc_comment(node, source_code)
@@ -447,6 +467,10 @@ class TSParser:
         prop_name = self._get_node_text(name_node, source_code)
         prop = TSProperty(prop_name)
 
+        # Add line number tracking
+        prop.start_line = node.start_point[0] + 1
+        prop.end_line = node.end_point[0] + 1
+
         # Parse type annotation
         type_node = node.child_by_field_name("type")
         if type_node:
@@ -466,6 +490,10 @@ class TSParser:
 
         method_name = self._get_node_text(name_node, source_code)
         method = TSMethod(method_name)
+
+        # Add line number tracking
+        method.start_line = node.start_point[0] + 1
+        method.end_line = node.end_point[0] + 1
 
         # Parse parameters
         params_node = node.child_by_field_name("parameters")
@@ -518,6 +546,10 @@ class TSParser:
                     var_name = self._get_node_text(name_node, source_code)
                     var_obj = TSVariable(var_name)
                     var_obj.is_export = is_export
+
+                    # Add line number tracking
+                    var_obj.start_line = child.start_point[0] + 1
+                    var_obj.end_line = child.end_point[0] + 1
 
                     # Try to find doc comment for the variable
                     # First check node (declaration level)
@@ -591,6 +623,10 @@ class TSParser:
         func_name = self._get_node_text(name_node, source_code)
         func = TSMethod(func_name)
         func.kind = "function"
+
+        # Add line number tracking
+        func.start_line = node.start_point[0] + 1
+        func.end_line = node.end_point[0] + 1
 
         # Get documentation comment
         func.doc_comment = self._find_doc_comment(node, source_code)

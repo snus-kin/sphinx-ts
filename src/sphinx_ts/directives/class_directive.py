@@ -36,6 +36,7 @@ class TSAutoClassDirective(TSAutoDirective):
             return []
 
         ts_class: TSClass = result["object"]
+        file_path = result["file_path"]
 
         # Register methods and properties with domain
         self._register_members_with_domain(
@@ -49,6 +50,9 @@ class TSAutoClassDirective(TSAutoDirective):
 
         # Create standardized signature
         self._create_standard_signature(class_sig, class_name, "class")
+
+        # Add inline source link to signature
+        self._add_source_link_to_signature(class_sig, file_path, ts_class)
 
         # Add standardized documentation content
         self._add_standard_doc_content(class_content, ts_class.doc_comment)
