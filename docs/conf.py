@@ -21,6 +21,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.todo",
 ]
 
 templates_path = ["_templates"]
@@ -87,6 +88,10 @@ napoleon_attr_annotations = True
 # -- Furo theme configuration ------------------------------------------
 
 highlight_language = "typescript"
+
+# -- Todo extension configuration ------------------------------------------
+
+todo_include_todos = True
 
 html_theme_options = {
     "light_css_variables": {

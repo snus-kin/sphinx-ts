@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docutils import nodes
+from docutils.statemachine import StringList
 from sphinx import addnodes
 from sphinx.util import logging
 
@@ -72,10 +73,34 @@ class TSAutoInterfaceDirective(TSAutoDirective):
         interface_desc += interface_content
 
         # Add interface description
-        if ts_interface.doc_comment and ts_interface.doc_comment.description:
-            desc_para = nodes.paragraph()
-            desc_para.append(nodes.Text(ts_interface.doc_comment.description))
-            interface_content.append(desc_para)
+        if ts_interface.doc_comment:
+            try:
+                # Format the doc comment as RST and parse it into proper nodes
+                formatted_rst_lines = self.format_doc_comment(
+                    ts_interface.doc_comment
+                )
+                if formatted_rst_lines:
+                    # Use Sphinx's content parsing mechanism
+                    content = StringList(formatted_rst_lines)
+                    node = nodes.Element()
+                    self.state.nested_parse(content, self.content_offset, node)
+
+                    # Add the parsed content to interface content
+                    for child in node.children:
+                        interface_content.append(child)
+
+            except Exception as e:
+                # Fallback to plain text if RST parsing fails
+                logger.warning(
+                    "Failed to parse RST content for interface %s: %s",
+                    interface_name,
+                    e,
+                )
+                desc_para = nodes.paragraph()
+                desc_para.append(
+                    nodes.Text(ts_interface.doc_comment.description)
+                )
+                interface_content.append(desc_para)
 
         # Store interface name for later use with methods and properties
         self.current_interface_name = interface_name

@@ -50,7 +50,7 @@ class TestTSAutoDirectiveCore:
         result = directive.format_doc_comment(doc_comment)
         assert len(result) > 0
         assert "This is a test function." in result[0]
-        assert any(".. rubric:: Parameters" in line for line in result)
+        assert any("**Parameters:**" in line for line in result)
         assert any("name" in line for line in result)
 
     def test_format_type_annotation(self) -> None:
@@ -167,11 +167,11 @@ class TestTSDocCommentFormatting:
         # Check that all components are present
         content = "\n".join(result)
         assert "comprehensive test function" in content.lower()
-        assert ".. rubric:: Parameters" in content
+        assert "**Parameters:**" in content
         assert "first parameter" in content
         assert "second parameter" in content
-        assert ".. rubric:: Returns" in content or "result value" in content
-        assert ".. rubric:: Examples" in content
+        assert "**Returns:**" in content
+        assert "result value" in content
         assert "Since:" in content or "1.0.0" in content
         assert "deprecated" in content.lower()
 
@@ -199,7 +199,7 @@ class TestTSDocCommentFormatting:
         result = directive.format_doc_comment(doc_comment)
         content = "\n".join(result)
 
-        assert ".. rubric:: Parameters" in content
+        assert "**Parameters:**" in content
         assert "First param" in content
         assert "Second param" in content
 

@@ -6,6 +6,7 @@ for all TypeScript auto-documentation directives.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +47,7 @@ class TSAutoDirective(SphinxDirective):
         """Initialize the directive."""
         super().__init__(*args, **kwargs)
         self.parser = TSParser()
+        self.logger = logging.getLogger(__name__)
 
     def get_source_files(self) -> list[Path]:
         """Get list of TypeScript source files to scan."""
@@ -171,33 +173,49 @@ class TSAutoDirective(SphinxDirective):
 
         lines = []
 
-        # Add description
+        # Add description with better paragraph handling
         if doc_comment.description:
-            lines.extend(doc_comment.description.split("\n"))
+            # Split into paragraphs and format each one
+            paragraphs = doc_comment.description.strip().split("\n\n")
+            for i, paragraph in enumerate(paragraphs):
+                # Clean up each paragraph
+                clean_paragraph = " ".join(
+                    line.strip()
+                    for line in paragraph.split("\n")
+                    if line.strip()
+                )
+                if clean_paragraph:
+                    lines.append(clean_paragraph)
+                    if (
+                        i < len(paragraphs) - 1
+                    ):  # Add spacing between paragraphs
+                        lines.append("")
             lines.append("")
 
-        # Add deprecation notice if present
+        # Add deprecation notice with better formatting
         if doc_comment.deprecated:
-            lines.extend(
-                [
-                    ".. warning::",
-                    "",
-                    "   **Deprecated**: "
-                    + (doc_comment.deprecated or "This feature is deprecated."),
-                    "",
-                ]
+            deprecated_text = (
+                doc_comment.deprecated or "This feature is deprecated."
             )
 
-        # Add since version if available
+            # Check if deprecated text starts with a version number
+            version_pattern = r"^\s*v?\d+\.\d+"
+            if re.match(version_pattern, deprecated_text):
+                # Text starts with version, use standard deprecated directive
+                lines.extend([f".. deprecated:: {deprecated_text}", ""])
+            else:
+                # No version number, use warning directive to avoid parsing
+                lines.extend(
+                    [
+                        ".. warning::",
+                        f"   **Deprecated:** {deprecated_text}",
+                        "",
+                    ]
+                )
+
+        # Add since version with cleaner formatting
         if doc_comment.since:
-            lines.extend(
-                [
-                    ".. note::",
-                    "",
-                    f"   Available since version {doc_comment.since}",
-                    "",
-                ]
-            )
+            lines.extend([".. versionadded::", f"   {doc_comment.since}", ""])
 
         # Add parameters only if not skipped
         if not skip_params:
@@ -217,25 +235,27 @@ class TSAutoDirective(SphinxDirective):
         return lines
 
     def _format_parameters(self, doc_comment: TSDocComment) -> list[str]:
-        """Format parameter documentation."""
+        """Format parameter documentation with proper RST definition lists."""
         if not doc_comment.params:
             return []
 
-        lines = [".. rubric:: Parameters", ""]
-        lines.append(".. list-table::")
-        lines.append("   :widths: 20 80")
-        lines.append("   :class: parameter-table")
-        lines.append("")
+        lines = ["**Parameters:**", ""]
 
         for param_name, param_desc in doc_comment.params.items():
-            param_node_txt = f":{param_name}:"
-            lines.append(f"   * - ``{param_node_txt}``")
+            # Create proper RST definition list format
+            lines.append(f"``{param_name}``")
             if param_desc:
-                lines.append(f"     - {param_desc}")
+                # Proper indentation for definition list items
+                desc_lines = param_desc.strip().split("\n")
+                for i, line in enumerate(desc_lines):
+                    if i == 0:
+                        lines.append(f"    {line.strip()}")
+                    else:
+                        lines.append(f"    {line.strip()}")
             else:
-                lines.append("     - ")
+                lines.append("    ")
+            lines.append("")
 
-        lines.append("")
         return lines
 
     def _format_returns(self, doc_comment: TSDocComment) -> list[str]:
@@ -251,10 +271,7 @@ class TSAutoDirective(SphinxDirective):
         if not doc_comment.returns:
             return []
 
-        lines = [".. rubric:: Returns", ""]
-        lines.append("   " + doc_comment.returns)
-        lines.append("")
-        return lines
+        return ["**Returns:**", "", doc_comment.returns.strip(), ""]
 
     def format_returns_section(
         self,
@@ -308,28 +325,59 @@ class TSAutoDirective(SphinxDirective):
         content.append(returns_para)
 
     def _format_examples(self, doc_comment: TSDocComment) -> list[str]:
-        """Format example documentation."""
+        """Format example documentation with better styling."""
         lines = []
         if doc_comment.examples:
-            lines.append(".. rubric:: Examples")
+            lines.extend(["**Examples:**", ""])
+
+            for i, example in enumerate(doc_comment.examples):
+                # Add separator between multiple examples
+                if i > 0:
+                    lines.append("")
+
+                # Format code block with proper indentation
+                lines.extend([".. code-block:: typescript", ""])
+
+                # Clean up and indent the example code
+                example_lines = example.strip().split("\n")
+                for line in example_lines:
+                    lines.append(f"   {line}")
+                lines.append("")
+
             lines.append("")
-            # Use only one code block for all examples to prevent duplication
-            lines.append(".. code-block:: typescript")
-            lines.append("")
-            for example in doc_comment.examples:
-                lines.extend(f"   {line}" for line in example.split("\n"))
-                if example != doc_comment.examples[-1]:
-                    lines.append("   ")  # Add separator between examples
-            lines.append("")
+            # Remove final empty line to avoid double spacing
+            if lines and lines[-1] == "":
+                lines.pop()
         return lines
 
     def _format_other_tags(self, doc_comment: TSDocComment) -> list[str]:
         """Format other documentation tags."""
         lines = []
-        if doc_comment.since:
-            lines.extend([f":Since: {doc_comment.since}", ""])
-        if doc_comment.deprecated:
-            lines.extend([f".. deprecated:: {doc_comment.deprecated}", ""])
+
+        # Handle custom tags with better formatting
+        if doc_comment.tags:
+            for tag_name, tag_value in doc_comment.tags.items():
+                # Clean up tag value
+                clean_value = tag_value.strip() if tag_value else ""
+                if not clean_value:
+                    continue
+
+                if tag_name.lower() in ["see", "seealso"]:
+                    lines.extend([".. seealso::", f"   {clean_value}", ""])
+                elif tag_name.lower() in ["note", "notes"]:
+                    lines.extend([".. note::", f"   {clean_value}", ""])
+                elif tag_name.lower() in ["warning", "warn"]:
+                    lines.extend([".. warning::", f"   {clean_value}", ""])
+                elif tag_name.lower() == "todo":
+                    lines.extend([".. todo::", f"   {clean_value}", ""])
+                elif tag_name.lower() in ["throws", "throw"]:
+                    lines.extend(["**Raises:**", f"{clean_value}", ""])
+                else:
+                    # For unknown tags, use a generic format
+                    lines.extend(
+                        [f"**{tag_name.title()}:**", f"{clean_value}", ""]
+                    )
+
         return lines
 
     def format_type_annotation(self, type_annotation: str | None) -> str:
@@ -612,11 +660,21 @@ class TSAutoDirective(SphinxDirective):
     def _add_method_description(
         self, content: addnodes.desc_content, method: TSMethod
     ) -> None:
-        """Add method description only (no parameters, returns, or examples)."""
+        """Add method description with better paragraph handling."""
         if method.doc_comment and method.doc_comment.description:
-            desc_para = nodes.paragraph()
-            desc_para.append(nodes.Text(method.doc_comment.description))
-            content.append(desc_para)
+            # Split description into paragraphs for better formatting
+            paragraphs = method.doc_comment.description.strip().split("\n\n")
+            for paragraph in paragraphs:
+                # Clean up paragraph text
+                clean_text = " ".join(
+                    line.strip()
+                    for line in paragraph.split("\n")
+                    if line.strip()
+                )
+                if clean_text:
+                    desc_para = nodes.paragraph()
+                    desc_para.append(nodes.Text(clean_text))
+                    content.append(desc_para)
 
     def _add_method_returns(
         self, content: addnodes.desc_content, method: TSMethod
@@ -633,7 +691,7 @@ class TSAutoDirective(SphinxDirective):
     def _add_parameter_list(
         self, content: addnodes.desc_content, method: TSMethod
     ) -> None:
-        """Add parameter list to method content."""
+        """Add parameter list with improved styling and layout."""
         if not method.parameters:
             return
 
@@ -642,61 +700,66 @@ class TSAutoDirective(SphinxDirective):
         if method.doc_comment and method.doc_comment.params:
             documented_params = method.doc_comment.params
 
-        # Add a rubric for parameters (without colon, Sphinx adds formatting)
-        param_rubric = nodes.rubric(text="Parameters")
-        content.append(param_rubric)
+        # Add parameters section with better styling
+        param_section = nodes.section()
+        param_section["ids"] = ["parameters"]
 
-        # Create field list for parameters
-        field_list = nodes.field_list()
-        content.append(field_list)
+        param_title = nodes.title(text="Parameters")
+        param_section.append(param_title)
 
-        # Add parameters as field items
+        # Use definition list for cleaner parameter display
+        definition_list = nodes.definition_list()
+        param_section.append(definition_list)
+
+        # Add parameters as definition list items
         for param in method.parameters:
-            # Create field item
-            field = nodes.field()
-            field_list.append(field)
+            # Create definition list item
+            def_item = nodes.definition_list_item()
+            definition_list.append(def_item)
 
-            # Create field name with parameter name and optional marker
-            field_name = nodes.field_name("")
-            self.format_optional_parameter(
-                field_name,
-                param["name"],
-                param.get("optional", False),
-                in_signature=False,
-            )
+            # Create term (parameter name with type)
+            term = nodes.term()
+            def_item.append(term)
 
-            field.append(field_name)
+            # Add parameter name with optional marker
+            param_name = nodes.literal(text=param["name"])
+            term.append(param_name)
 
-            # Create field body with type and description
-            field_body = nodes.field_body()
-            field.append(field_body)
+            if param.get("optional", False):
+                term.append(nodes.Text("?"))
 
-            # Create paragraph for type and description in a single line
-            para = nodes.paragraph()
-
-            # Add type information inline
+            # Add type information
             if param.get("type"):
+                term.append(nodes.Text(": "))
                 formatted_type = self.format_parameter_type(
                     param.get("type", "")
                 )
-                para.append(nodes.emphasis("", formatted_type))
-                if param.get("default"):
-                    para.append(nodes.Text(f" = {param.get('default')}"))
+                type_node = nodes.emphasis(text=formatted_type)
+                term.append(type_node)
 
-                # Add a space between type and description
-                if param["name"] in documented_params:
-                    para.append(nodes.Text(" - "))
+            # Add default value if present
+            if param.get("default"):
+                term.append(nodes.Text(f" = {param.get('default')}"))
 
-            # Add description in the same paragraph
+            # Create definition (parameter description)
+            definition = nodes.definition()
+            def_item.append(definition)
+
             if param["name"] in documented_params:
-                para.append(nodes.Text(documented_params[param["name"]]))
+                desc_para = nodes.paragraph()
+                desc_para.append(nodes.Text(documented_params[param["name"]]))
+                definition.append(desc_para)
+            else:
+                # Add empty paragraph to maintain structure
+                empty_para = nodes.paragraph()
+                definition.append(empty_para)
 
-            field_body.append(para)
+        content.append(param_section)
 
     def _format_property_common(
         self, prop: TSProperty, parent_name: str | None = None
     ) -> addnodes.desc | None:
-        """Format a property as RST.
+        """Format a property as RST with improved styling.
 
         This shared method can be used by both class and interface directives.
 
@@ -717,34 +780,51 @@ class TSAutoDirective(SphinxDirective):
         )
         desc["ids"] = [f"ts-property-{prop_id}"]
 
-        # Create signature
+        # Create signature with better styling
         sig = addnodes.desc_signature("", "", first=True)
-        sig["class"] = "sig-object ts"
+        sig["class"] = "sig-object ts ts-property"
         sig["ids"] = [f"property-{prop_id}"]
         desc += sig
 
-        # Add property name
+        # Add property name with better formatting
         sig += addnodes.desc_sig_name("", prop.name)
 
         # Add optional marker for properties if needed
         if hasattr(prop, "is_optional") and prop.is_optional:
-            sig += nodes.Text("?")
+            optional_node = nodes.inline("?", "?")
+            optional_node["classes"] = ["optional-marker"]
+            sig += optional_node
 
-        # Add property type
+        # Add property type with better formatting
         if prop.type_annotation:
             sig += nodes.Text(": ")
             formatted_type = self.format_parameter_type(prop.type_annotation)
-            sig += nodes.emphasis("", formatted_type)
+            type_node = nodes.emphasis("", formatted_type)
+            type_node["classes"] = ["type-annotation"]
+            sig += type_node
+
+        # Add default value if present
+        if hasattr(prop, "default_value") and prop.default_value:
+            sig += nodes.Text(f" = {prop.default_value}")
 
         # Add content container
         content = addnodes.desc_content()
         desc += content
 
-        # Add property documentation
+        # Add property documentation with better paragraph handling
         if prop.doc_comment and prop.doc_comment.description:
-            para = nodes.paragraph()
-            para += nodes.Text(prop.doc_comment.description)
-            content += para
+            # Split description into paragraphs for better formatting
+            paragraphs = prop.doc_comment.description.strip().split("\n\n")
+            for paragraph in paragraphs:
+                clean_text = " ".join(
+                    line.strip()
+                    for line in paragraph.split("\n")
+                    if line.strip()
+                )
+                if clean_text:
+                    para = nodes.paragraph()
+                    para += nodes.Text(clean_text)
+                    content += para
 
         return desc
 
@@ -753,7 +833,7 @@ class TSAutoDirective(SphinxDirective):
         content: nodes.Element,
         doc_comment: TSDocComment,
     ) -> None:
-        """Add examples section to documentation content.
+        """Add examples section to documentation content with improved styling.
 
         Args:
             content: The content container to add examples to
@@ -763,23 +843,30 @@ class TSAutoDirective(SphinxDirective):
         if not (doc_comment and doc_comment.examples):
             return
 
-        # Use rubric instead of section to exclude from TOC
-        examples_rubric = nodes.rubric(text="Examples")
-        examples_rubric["classes"] = ["ts-examples"]
-        content.append(examples_rubric)
+        # Create examples section with consistent styling
+        examples_section = nodes.section()
+        examples_section["ids"] = ["examples"]
 
-        # Create a literal block with all examples
-        example_lines = []
-        for example in doc_comment.examples:
-            example_lines.extend(example.split("\n"))
-            if example != doc_comment.examples[-1]:
-                example_lines.append("")  # Add separator between examples
+        examples_title = nodes.title(text="Examples")
+        examples_section.append(examples_title)
 
-        example_text = "\n".join(example_lines)
-        example_node = nodes.literal_block(example_text, example_text)
-        example_node["language"] = "typescript"
-        example_node["classes"] = ["highlight"]
-        content.append(example_node)
+        # Process each example individually for better separation
+        for i, example in enumerate(doc_comment.examples):
+            # Add spacing between multiple examples
+            if i > 0:
+                separator = nodes.paragraph()
+                examples_section.append(separator)
+
+            # Clean up example text
+            example_text = example.strip()
+
+            # Create code block with proper formatting
+            example_node = nodes.literal_block(example_text, example_text)
+            example_node["language"] = "typescript"
+            example_node["classes"] = ["highlight", "ts-example"]
+            examples_section.append(example_node)
+
+        content.append(examples_section)
 
     def _register_members_with_domain(
         self,

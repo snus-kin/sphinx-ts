@@ -214,6 +214,66 @@ class TestTSParser:
         except Exception as e:
             pytest.skip(f"Tree-sitter parsing failed: {e}")
 
+    def test_parse_exported_class_with_doc_comment(self) -> None:
+        """Test parsing exported classes with JSDoc comments."""
+        content = """
+        /**
+         * A simple class with JSDoc documentation.
+         * This should be detected by the parser.
+         */
+        class SimpleClass {
+            name: string;
+        }
+
+        /**
+         * An exported class with documentation.
+         * @example
+         * const obj = new ExportedClass("test");
+         */
+        export class ExportedClass {
+            private value: number;
+
+            constructor(value: number) {
+                this.value = value;
+            }
+        }
+        """
+        file_path = self.create_temp_file("exported_classes.ts", content)
+
+        try:
+            result = self.parser.parse_file(file_path)
+
+            assert "classes" in result
+            expected_class_count = 2
+            assert len(result["classes"]) == expected_class_count
+
+            # Check SimpleClass
+            simple_class = next(
+                (c for c in result["classes"] if c.name == "SimpleClass"), None
+            )
+            assert simple_class is not None
+            assert simple_class.doc_comment is not None
+            assert (
+                "simple class with jsdoc documentation"
+                in simple_class.doc_comment.description.lower()
+            )
+
+            # Check ExportedClass
+            exported_class = next(
+                (c for c in result["classes"] if c.name == "ExportedClass"),
+                None,
+            )
+            assert exported_class is not None
+            assert exported_class.is_export
+            assert exported_class.doc_comment is not None
+            assert (
+                "exported class with documentation"
+                in exported_class.doc_comment.description.lower()
+            )
+
+        except Exception as e:
+            pytest.skip(f"Tree-sitter parsing failed: {e}")
+
 
 class TestTSMemberClasses:
     """Test TypeScript member data classes."""

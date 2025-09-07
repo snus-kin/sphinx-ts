@@ -7,6 +7,7 @@ and enums.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,8 @@ from .ast_nodes import (
     TSVariable,
 )
 from .doc_comment import TSDocComment
+
+logger = logging.getLogger(__name__)
 
 
 class TSParser:
@@ -161,6 +164,20 @@ class TSParser:
         source_code: bytes,
     ) -> TSDocComment | None:
         """Find JSDoc comment preceding a node."""
+        # For exported classes, the comment might be a sibling of export
+        if node.parent and node.parent.type == "export_statement":
+            # Look for comments that are siblings of the export statement
+            export_node = node.parent
+            current = export_node.prev_sibling
+            while current:
+                if current.type == "comment":
+                    text = self._get_node_text(current, source_code)
+                    if text.strip().startswith("/**"):
+                        return TSDocComment(text)
+                elif current.type not in ["comment", "export_statement"]:
+                    break
+                current = current.prev_sibling
+
         # Look for comment nodes before this node
         current = node.prev_sibling
         while current:
