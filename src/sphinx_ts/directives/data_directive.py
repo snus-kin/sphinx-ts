@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from docutils import nodes
+from docutils.statemachine import StringList
 from sphinx import addnodes
 from sphinx.util import logging
 
@@ -365,10 +366,36 @@ class TSAutoDataDirective(TSAutoDirective):
         func_node += content
 
         # Add function documentation
-        if ts_function.doc_comment and ts_function.doc_comment.description:
-            desc_para = nodes.paragraph()
-            desc_para.append(nodes.Text(ts_function.doc_comment.description))
-            content.append(desc_para)
+        if ts_function.doc_comment:
+            try:
+                # Format the doc comment as RST and parse it into proper nodes
+                formatted_rst_lines = self.format_doc_comment(
+                    ts_function.doc_comment
+                )
+                if formatted_rst_lines:
+                    # Use Sphinx's content parsing mechanism
+                    rst_content = StringList(formatted_rst_lines)
+                    node = nodes.Element()
+                    self.state.nested_parse(
+                        rst_content, self.content_offset, node
+                    )
+
+                    # Add the parsed content to function content
+                    for child in node.children:
+                        content.append(child)
+
+            except Exception as e:
+                # Fallback to plain text if RST parsing fails
+                logger.warning(
+                    "Failed to parse RST content for function %s: %s",
+                    ts_function.name,
+                    e,
+                )
+                desc_para = nodes.paragraph()
+                desc_para.append(
+                    nodes.Text(ts_function.doc_comment.description)
+                )
+                content.append(desc_para)
 
         # Add parameter information
         if ts_function.parameters:

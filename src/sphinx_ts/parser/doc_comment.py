@@ -57,26 +57,40 @@ class TSDocComment:
 
         content = "\n".join(lines).strip()
 
-        # Split into description and tags
-        parts = re.split(r"\n\s*@", content, maxsplit=1)
-        self.description = parts[0].strip()
+        # Check if content starts with a tag (no description)
+        if content.strip().startswith("@"):
+            self.description = ""
+            self._parse_tags(content.strip())
+        else:
+            # Split into description and tags
+            parts = re.split(r"\n\s*@", content, maxsplit=1)
+            self.description = parts[0].strip()
 
-        if len(parts) > 1:
-            tag_content = parts[1]
-            self._parse_tags("@" + tag_content)
+            if len(parts) > 1:
+                tag_content = parts[1]
+                self._parse_tags("@" + tag_content)
 
     def _parse_tags(self, tag_content: str) -> None:
         """Parse JSDoc tags."""
-        tags = re.findall(
-            r"@(\w+)(?:\s+([^@]+))?",
-            tag_content,
-            re.MULTILINE | re.DOTALL,
-        )
+        # Use more precise regex to find tag boundaries
+        tag_pattern = r"\n\s*@(?=\w+(?:\s|$))"
+        tag_parts = re.split(tag_pattern, tag_content)
 
         # Clear examples list before parsing to avoid duplicates
         self.examples = []
 
-        for tag_name, original_tag_value in tags:
+        for part in tag_parts:
+            if not part.strip():
+                continue
+
+            # Remove leading @ if present and extract tag name and value
+            clean_part = part.lstrip("@").strip()
+            match = re.match(r"^(\w+)(?:\s+(.*))?$", clean_part, re.DOTALL)
+            if not match:
+                continue
+
+            tag_name, tag_value = match.groups()
+            original_tag_value = tag_value or ""
             tag_value = original_tag_value.strip() if original_tag_value else ""
 
             if tag_name == "param":
@@ -88,16 +102,27 @@ class TSDocComment:
                 )
                 if match:
                     param_type, param_name, param_desc = match.groups()
+                    # Clean up description by removing leading dashes
+                    if param_desc:
+                        param_desc = param_desc.strip()
+                        if param_desc.startswith("-"):
+                            param_desc = param_desc[1:].strip()
                     self.params[param_name] = param_desc or ""
             elif tag_name in {"returns", "return"}:
                 self.returns = tag_value
             elif tag_name == "example":
                 # Process markdown code blocks more carefully
-                tag_value = re.sub(r"```typescript\s*", "", tag_value)
-                tag_value = re.sub(r"```\s*$", "", tag_value)
-                tag_value = tag_value.strip()
-                if tag_value:  # Only add non-empty examples
-                    self.examples.append(tag_value)
+                # Remove code block markers
+                cleaned_example = re.sub(
+                    r"```(?:typescript|ts)?\s*", "", tag_value
+                )
+                cleaned_example = re.sub(
+                    r"```\s*$", "", cleaned_example, flags=re.MULTILINE
+                )
+                cleaned_example = cleaned_example.strip()
+
+                if cleaned_example:  # Only add non-empty examples
+                    self.examples.append(cleaned_example)
             elif tag_name == "deprecated":
                 self.deprecated = tag_value
             elif tag_name == "since":

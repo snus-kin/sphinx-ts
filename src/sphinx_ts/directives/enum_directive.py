@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docutils import nodes
+from docutils.statemachine import StringList
 from docutils.utils import SystemMessage
 from sphinx import addnodes
 from sphinx.util import logging
@@ -99,10 +100,32 @@ class TSAutoEnumDirective(TSAutoDirective):
         desc_content = addnodes.desc_content()
 
         # Add enum description
-        if ts_enum.doc_comment and ts_enum.doc_comment.description:
-            para = nodes.paragraph()
-            para += nodes.Text(ts_enum.doc_comment.description)
-            desc_content += para
+        if ts_enum.doc_comment:
+            try:
+                # Format the doc comment as RST and parse it into proper nodes
+                formatted_rst_lines = self.format_doc_comment(
+                    ts_enum.doc_comment
+                )
+                if formatted_rst_lines:
+                    # Use Sphinx's content parsing mechanism
+                    content = StringList(formatted_rst_lines)
+                    node = nodes.Element()
+                    self.state.nested_parse(content, self.content_offset, node)
+
+                    # Add the parsed content to enum content
+                    for child in node.children:
+                        desc_content.append(child)
+
+            except Exception as e:
+                # Fallback to plain text if RST parsing fails
+                logger.warning(
+                    "Failed to parse RST content for enum %s: %s",
+                    ts_enum.name,
+                    e,
+                )
+                para = nodes.paragraph()
+                para += nodes.Text(ts_enum.doc_comment.description)
+                desc_content += para
 
         # Add members in a codeblock
         if ts_enum.members:
