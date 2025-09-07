@@ -96,6 +96,16 @@ Property References
 
 Reference properties like :ts:meth:`Calculator.memory`.
 
+Enum Member References
+~~~~~~~~~~~~~~~~~~~~~~
+
+Reference specific enum members:
+
+- :ts:enum_member:`HttpStatusCategory.SUCCESS` - Successful responses
+- :ts:enum_member:`LogLevel.ERROR` - Error level logging
+- :ts:enum_member:`Permission.READ` - Read permission flag
+- :ts:enum_member:`UserRole.ADMIN` - Administrator role
+
 Function and Variable References
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
