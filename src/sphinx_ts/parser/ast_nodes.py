@@ -21,6 +21,7 @@ class TSMember(NamedObjectMixin):
         """Initialize a TypeScript member.
 
         Args:
+        ----
             name: The name of the member
             kind: The kind of member (method, property, etc.)
 
@@ -47,6 +48,7 @@ class TSMethod(TSMember):
         """Initialize a TypeScript method.
 
         Args:
+        ----
             name: The name of the method
 
         """
@@ -64,6 +66,7 @@ class TSProperty(TSMember):
         """Initialize a TypeScript property.
 
         Args:
+        ----
             name: The name of the property
 
         """
@@ -78,6 +81,7 @@ class TSClass(NamedObjectMixin):
         """Initialize a TypeScript class.
 
         Args:
+        ----
             name: The name of the class
 
         """
@@ -103,6 +107,7 @@ class TSInterface(NamedObjectMixin):
         """Initialize a TypeScript interface.
 
         Args:
+        ----
             name: The name of the interface
 
         """
@@ -124,6 +129,7 @@ class TSVariable(NamedObjectMixin):
         """Initialize a TypeScript variable.
 
         Args:
+        ----
             name: The name of the variable
 
         """
@@ -144,6 +150,7 @@ class TSEnumMember(NamedObjectMixin):
         """Initialize a TypeScript enum member.
 
         Args:
+        ----
             name: The name of the enum member
 
         """
@@ -160,6 +167,7 @@ class TSEnum(NamedObjectMixin):
         """Initialize a TypeScript enum.
 
         Args:
+        ----
             name: The name of the enum
 
         """

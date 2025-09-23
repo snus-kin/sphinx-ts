@@ -40,9 +40,11 @@ def parse_parameters_from_signature(sig: str) -> list[dict[str, str]]:
     """Parse parameters from a TypeScript function signature.
 
     Args:
+    ----
         sig: The function signature string
 
     Returns:
+    -------
         List of parameter dictionaries with name, type, optional, default keys
 
     """
@@ -93,9 +95,11 @@ def _parse_single_parameter(param: str) -> dict[str, str]:
     """Parse a single parameter string into components.
 
     Args:
+    ----
         param: Single parameter string like "name: string" or "value?: number"
 
     Returns:
+    -------
         Dictionary with name, type, optional, default keys
 
     """
@@ -790,6 +794,7 @@ class TypeScriptDomain(Domain):
         """Note a TypeScript object for cross-referencing.
 
         Args:
+        ----
             obj_type: The type of object (class, method, property, etc.)
             name: The name of the object
             _target: Unused target parameter

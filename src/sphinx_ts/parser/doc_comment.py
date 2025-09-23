@@ -16,6 +16,7 @@ class TSDocComment:
         """Initialize a TypeScript JSDoc comment.
 
         Args:
+        ----
             text: The raw JSDoc comment text
 
         """
