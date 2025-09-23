@@ -53,12 +53,12 @@ sphinx_ts = "sphinx_ts"
 
 [dependency-groups]
 dev = [
-    "pyright>=1.1.404",
     "pytest>=8.4.1",
     "ruff>=0.12.11",
     "tree-sitter>=0.23.2",
     "pytest-cov>=6.2.1",
     "pre-commit>=4.3.0",
+    "basedpyright>=1.31.4",
 ]
 
 [tool.ruff]
