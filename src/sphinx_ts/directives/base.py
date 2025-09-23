@@ -14,6 +14,7 @@ from typing import Any
 from docutils import nodes
 from docutils.core import publish_doctree
 from docutils.parsers.rst import directives
+from docutils.statemachine import StringList
 from docutils.utils import SystemMessage
 from sphinx import addnodes
 from sphinx.util import logging as sphinx_logging
@@ -138,10 +139,12 @@ class TSAutoDirective(SphinxDirective):
         """Generate a source URL for the given file and object.
 
         Args:
+        ----
             file_path: Path to the source file
             obj: Optional object with line number information
 
         Returns:
+        -------
             A source URL string or None if not configured
 
         """
@@ -221,6 +224,7 @@ class TSAutoDirective(SphinxDirective):
         """Add an inline source link to a signature node.
 
         Args:
+        ----
             signature_node: The signature node to add the link to
             file_path: Path to the source file
             obj: Optional object with line number information
@@ -268,6 +272,7 @@ class TSAutoDirective(SphinxDirective):
         """Register an object with the TypeScript domain for cross-referencing.
 
         Args:
+        ----
             obj_type: The type of object (class, method, property, etc.)
             name: The name of the object
             docname: The document name
@@ -413,11 +418,13 @@ class TSAutoDirective(SphinxDirective):
         the JSDoc @returns tag description and the TypeScript return type.
 
         Args:
+        ----
             content: The content container to add the returns section to
             doc_comment: Optional doc comment containing returns information
             return_type: Optional return type if not available in doc_comment
 
         Note:
+        ----
             When both doc_comment.returns and return_type are provided, the
             doc_comment.returns takes precedence as it typically contains more
             descriptive information.
@@ -545,12 +552,14 @@ class TSAutoDirective(SphinxDirective):
         """Format optional parameter consistently.
 
         Args:
+        ----
             node: Node to append the parameter to
             param_name: The name of the parameter
             optional: Whether the parameter is optional
             in_signature: Whether this is in a signature (use ? instead of text)
 
         Returns:
+        -------
             The node with parameter formatting applied
 
         """
@@ -579,10 +588,12 @@ class TSAutoDirective(SphinxDirective):
         """Format a parameter type consistently.
 
         Args:
+        ----
             param_type: The parameter type to format
             add_colon: Whether to prepend a colon to the type
 
         Returns:
+        -------
             Formatted parameter type
 
         """
@@ -599,6 +610,7 @@ class TSAutoDirective(SphinxDirective):
         """Format a parameter node for signatures.
 
         Args:
+        ----
             parameter: The node to add parameter formatting to
             param: Parameter dictionary with name, type, optional, and default
 
@@ -629,9 +641,11 @@ class TSAutoDirective(SphinxDirective):
         """Format a parameter as a string for signatures.
 
         Args:
+        ----
             param: Parameter dictionary with name, type, optional, and default
 
         Returns:
+        -------
             Formatted parameter string for signatures
 
         """
@@ -677,12 +691,14 @@ class TSAutoDirective(SphinxDirective):
         """Find and register objects using a common pattern.
 
         Args:
+        ----
             object_name: Name of the object to find
             object_type: Type of object (class, interface, enum, etc.)
             not_found_message: Custom warning message if object not found
             log_level: Logging level for not found message (default: WARNING)
 
         Returns:
+        -------
             Dict with object data or None if not found
 
         """
@@ -714,11 +730,13 @@ class TSAutoDirective(SphinxDirective):
         This shared method can be used by both class and interface directives.
 
         Args:
+        ----
             method: The method to format
             parent_name: Optional parent class/interface name
             title_override: Optional title override
 
         Returns:
+        -------
             A formatted method description (not a section to avoid TOC entries)
 
         """
@@ -894,10 +912,12 @@ class TSAutoDirective(SphinxDirective):
         This shared method can be used by both class and interface directives.
 
         Args:
+        ----
             prop: The property to format
             parent_name: Optional parent class/interface name
 
         Returns:
+        -------
             A formatted property description (not a section for TOC)
 
         """
@@ -968,6 +988,7 @@ class TSAutoDirective(SphinxDirective):
         """Add examples section to documentation content with improved styling.
 
         Args:
+        ----
             content: The content container to add examples to
             doc_comment: The doc comment containing examples
 
@@ -1011,6 +1032,7 @@ class TSAutoDirective(SphinxDirective):
         """Register methods and properties with the domain.
 
         Args:
+        ----
             parent_name: Name of the parent class/interface
             methods: List of methods to register
             properties: List of properties to register
@@ -1051,11 +1073,13 @@ class TSAutoDirective(SphinxDirective):
         This provides consistent formatting across all directive types.
 
         Args:
+        ----
             objtype: The object type (class, interface, enum, etc.)
             name: The name of the object
             parent_name: Optional parent name for qualified names
 
         Returns:
+        -------
             Tuple of (desc_node, signature_node, content_node) for further
             customization
 
@@ -1091,6 +1115,7 @@ class TSAutoDirective(SphinxDirective):
         """Add standardized documentation content to a content node.
 
         Args:
+        ----
             content_node: The content node to add documentation to
             doc_comment: The doc comment to format
             skip_params: Whether to skip parameter documentation
@@ -1111,8 +1136,6 @@ class TSAutoDirective(SphinxDirective):
             )
 
             if formatted_rst_lines:
-                from docutils.statemachine import StringList  # noqa: PLC0415
-
                 # Use Sphinx's content parsing mechanism
                 content = StringList(formatted_rst_lines)
                 node = nodes.Element()
@@ -1145,6 +1168,7 @@ class TSAutoDirective(SphinxDirective):
         """Create a standardized signature with consistent formatting.
 
         Args:
+        ----
             sig_node: The signature node to populate
             name: The main name of the object
             annotation: Optional annotation (e.g., "class", "interface")

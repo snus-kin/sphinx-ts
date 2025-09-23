@@ -40,9 +40,11 @@ def parse_parameters_from_signature(sig: str) -> list[dict[str, str]]:
     """Parse parameters from a TypeScript function signature.
 
     Args:
+    ----
         sig: The function signature string
 
     Returns:
+    -------
         List of parameter dictionaries with name, type, optional, default keys
 
     """
@@ -93,9 +95,11 @@ def _parse_single_parameter(param: str) -> dict[str, str]:
     """Parse a single parameter string into components.
 
     Args:
+    ----
         param: Single parameter string like "name: string" or "value?: number"
 
     Returns:
+    -------
         Dictionary with name, type, optional, default keys
 
     """
@@ -593,8 +597,6 @@ class TypeScriptDomain(Domain):
         # Handle method and property references with class/interface prefix
         # such as Class.method
         if "." in target and (typ in ["meth", "prop", "method", "property"]):
-            class_name, member_name = target.split(".", 1)
-
             # First check if the qualified name exists directly
             role_to_objtype = {
                 "meth": "method",
@@ -751,9 +753,9 @@ class TypeScriptDomain(Domain):
             for name, obj_data in objects.items():
                 # Unpack object data with support for older format
                 if len(obj_data) >= OBJDATA_TUPLE_LENGTH:
-                    docname, synopsis, noindex = obj_data
+                    docname, _, noindex = obj_data
                 else:
-                    docname, synopsis = obj_data
+                    docname, _ = obj_data
                     noindex = False
 
                 # Only add objects that shouldn't be hidden from TOC
@@ -790,6 +792,7 @@ class TypeScriptDomain(Domain):
         """Note a TypeScript object for cross-referencing.
 
         Args:
+        ----
             obj_type: The type of object (class, method, property, etc.)
             name: The name of the object
             _target: Unused target parameter

@@ -16,6 +16,7 @@ class TSDocComment:
         """Initialize a TypeScript JSDoc comment.
 
         Args:
+        ----
             text: The raw JSDoc comment text
 
         """
@@ -101,7 +102,7 @@ class TSDocComment:
                     re.DOTALL,
                 )
                 if match:
-                    param_type, param_name, param_desc = match.groups()
+                    _, param_name, param_desc = match.groups()
                     # Clean up description by removing leading dashes
                     if param_desc:
                         param_desc = param_desc.strip()

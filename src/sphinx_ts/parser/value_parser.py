@@ -25,9 +25,11 @@ class TSValueParser:
         """Parse a TypeScript value into a structured representation.
 
         Args:
+        ----
             value: The TypeScript value as a string
 
         Returns:
+        -------
             A dictionary with information about the value
 
         """
@@ -183,10 +185,12 @@ class TSValueParser:
         """Format a TypeScript value for display.
 
         Args:
+        ----
             value: The TypeScript value as a string
             pretty: Whether to pretty-print the value
 
         Returns:
+        -------
             A formatted string representation of the value
 
         """
@@ -248,11 +252,13 @@ class TSValueParser:
         """Format a node with proper indentation.
 
         Args:
+        ----
             node: The Tree-sitter node
             source_code: The source code
             indent_level: Current indentation level
 
         Returns:
+        -------
             Formatted code string
 
         """
