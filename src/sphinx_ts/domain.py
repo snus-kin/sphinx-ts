@@ -597,8 +597,6 @@ class TypeScriptDomain(Domain):
         # Handle method and property references with class/interface prefix
         # such as Class.method
         if "." in target and (typ in ["meth", "prop", "method", "property"]):
-            class_name, member_name = target.split(".", 1)
-
             # First check if the qualified name exists directly
             role_to_objtype = {
                 "meth": "method",
@@ -755,9 +753,9 @@ class TypeScriptDomain(Domain):
             for name, obj_data in objects.items():
                 # Unpack object data with support for older format
                 if len(obj_data) >= OBJDATA_TUPLE_LENGTH:
-                    docname, synopsis, noindex = obj_data
+                    docname, _, noindex = obj_data
                 else:
-                    docname, synopsis = obj_data
+                    docname, _ = obj_data
                     noindex = False
 
                 # Only add objects that shouldn't be hidden from TOC
