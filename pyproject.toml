@@ -45,7 +45,7 @@ Documentation = "https://sphinx-ts.readthedocs.io"
 Changelog = "https://github.com/snus-kin/sphinx-ts/releases"
 
 [build-system]
-requires = ["uv_build>=0.8.14,<0.9.0"]
+requires = ["uv_build>=0.8.14,<0.10.0"]
 build-backend = "uv_build"
 
 [project.entry-points."sphinx.html_themes"]
