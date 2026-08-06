@@ -30,11 +30,11 @@ repos:
       # Run the formatter
       - id: ruff-format
 
-  # Type checking with pyright
-  - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.404
+  # Type checking with basedpyright
+  - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
+    rev: v1.13.0
     hooks:
-      - id: pyright
+      - id: basedpyright
 
   # Markdown formatting
   - repo: https://github.com/igorshubovych/markdownlint-cli

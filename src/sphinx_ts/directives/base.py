@@ -605,7 +605,7 @@ class TSAutoDirective(SphinxDirective):
         return f": {formatted}" if add_colon else formatted
 
     def format_parameter_nodes(
-        self, parameter: nodes.Element, param: dict
+        self, parameter: nodes.Element, param: dict[str, str]
     ) -> None:
         """Format a parameter node for signatures.
 
@@ -637,7 +637,7 @@ class TSAutoDirective(SphinxDirective):
         if default_val:
             parameter += nodes.Text(f" = {default_val}")
 
-    def format_parameter_string(self, param: dict) -> str:
+    def format_parameter_string(self, param: dict[str, str]) -> str:
         """Format a parameter as a string for signatures.
 
         Args:
@@ -1024,8 +1024,8 @@ class TSAutoDirective(SphinxDirective):
     def _register_members_with_domain(
         self,
         parent_name: str,
-        methods: list | None = None,
-        properties: list | None = None,
+        methods: list[TSMethod] | None = None,
+        properties: list[TSProperty] | None = None,
         *,
         noindex: bool = True,
     ) -> None:
